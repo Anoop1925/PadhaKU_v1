@@ -114,7 +114,7 @@ export default function LeaderboardPage() {
       "bg-gradient-to-r from-green-500 to-green-600",
       "bg-gradient-to-r from-purple-500 to-purple-600",
       "bg-gradient-to-r from-pink-500 to-pink-600",
-      "bg-gradient-to-r from-indigo-500 to-indigo-600",
+      "bg-gradient-to-r from-blue-500 to-indigo-500",
       "bg-gradient-to-r from-red-500 to-red-600",
       "bg-gradient-to-r from-orange-500 to-orange-600",
       "bg-gradient-to-r from-teal-500 to-teal-600",
@@ -148,7 +148,7 @@ export default function LeaderboardPage() {
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-[#444fd6] to-[#5d87ee] rounded-2xl flex items-center justify-center">
+              <div className="w-14 h-14 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 rounded-2xl flex items-center justify-center">
                 <Trophy className="w-7 h-7 text-white" />
               </div>
               <div>
@@ -339,7 +339,7 @@ export default function LeaderboardPage() {
                                 {entry.displayName}
                               </span>
                               {isCurrent && (
-                                <span className="px-2.5 py-0.5 bg-[#444fd6] text-white text-xs font-bold rounded-full shadow-sm">
+                                <span className="px-2.5 py-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white text-xs font-bold rounded-full shadow-sm">
                                   You
                                 </span>
                               )}

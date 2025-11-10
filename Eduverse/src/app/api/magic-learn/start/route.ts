@@ -6,7 +6,9 @@ import fs from 'fs';
 
 const execAsync = promisify(exec);
 
-let streamlitProcess: any = null;
+let backendProcess: any = null;
+let heartbeatInterval: NodeJS.Timeout | null = null;
+let lastHeartbeat: number = Date.now();
 
 async function isPortInUse(port: number): Promise<boolean> {
   try {
@@ -17,134 +19,224 @@ async function isPortInUse(port: number): Promise<boolean> {
   }
 }
 
-async function checkStreamlitInstalled(): Promise<boolean> {
+// Function to check if Magic Learn backend is responding
+async function isBackendHealthy(): Promise<boolean> {
   try {
-    // Check if streamlit exists in venv (parent directory of project root)
-    const projectRoot = process.cwd();
-    const parentDir = path.dirname(projectRoot);
-    const venvStreamlitPath = path.join(parentDir, 'venv', 'Scripts', 'streamlit.exe');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
     
-    if (fs.existsSync(venvStreamlitPath)) {
-      console.log('Found Streamlit in venv:', venvStreamlitPath);
-      return true;
-    }
-    // Fallback to global streamlit
-    await execAsync('streamlit --version');
-    return true;
+    const response = await fetch('http://localhost:5000/api/health', {
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok;
   } catch {
     return false;
   }
 }
 
-export async function POST() {
+// Function to kill the backend process
+async function killBackendProcess() {
   try {
-    // Check if Streamlit is installed
-    const streamlitInstalled = await checkStreamlitInstalled();
-    if (!streamlitInstalled) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Streamlit is not installed. Please install it with: pip install streamlit'
-      }, { status: 500 });
+    if (backendProcess) {
+      backendProcess.kill();
+      backendProcess = null;
     }
 
-    // Check if Streamlit is already running on port 8501
-    const portInUse = await isPortInUse(8501);
+    // Kill any Python process running on port 5000
+    if (process.platform === 'win32') {
+      try {
+        // Find the PID using port 5000
+        const { stdout } = await execAsync('netstat -ano | findstr :5000');
+        const lines = stdout.trim().split('\n');
+        const pids = new Set<string>();
+        
+        for (const line of lines) {
+          const parts = line.trim().split(/\s+/);
+          const pid = parts[parts.length - 1];
+          if (pid && !isNaN(parseInt(pid))) {
+            pids.add(pid);
+          }
+        }
+        
+        // Kill each PID
+        for (const pid of pids) {
+          try {
+            await execAsync(`taskkill /F /PID ${pid}`);
+            console.log(`Killed backend process ${pid}`);
+          } catch {
+            // Ignore if process already dead
+          }
+        }
+      } catch {
+        // No process found on port 5000
+      }
+    }
     
-    if (portInUse) {
+    // Clear heartbeat monitoring
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+  } catch (error) {
+    console.error('Error killing backend:', error);
+  }
+}
+
+export async function POST() {
+  try {
+    // Check if Magic Learn backend is already running
+    const alreadyHealthy = await isBackendHealthy();
+    
+    if (alreadyHealthy) {
+      console.log('Backend already running, resetting heartbeat timer');
+      lastHeartbeat = Date.now();
       return NextResponse.json({ 
         success: true, 
-        message: 'Streamlit server is already running',
-        url: 'http://localhost:8501'
+        message: 'Magic Learn backend is already running',
+        url: 'http://localhost:5000'
       });
     }
 
-    // Check if app.py exists
-    const streamlitPath = path.join(process.cwd(), 'src', 'app', 'feature-1', 'app.py');
-    if (!fs.existsSync(streamlitPath)) {
+    // Check if the backend file exists
+    const backendPath = path.join(process.cwd(), 'src', 'app', 'feature-1', 'magic_learn_backend.py');
+    if (!fs.existsSync(backendPath)) {
       return NextResponse.json({ 
         success: false, 
-        message: `Streamlit app not found at: ${streamlitPath}`
+        message: `Backend file not found at: ${backendPath}`
       }, { status: 500 });
     }
 
-    // Start Streamlit server in background
-    console.log('Starting Streamlit server at:', streamlitPath);
-    
-    // Use VBScript to launch batch file silently (no window flash)
-    const projectRoot = process.cwd();
-    const vbsScriptPath = path.join(projectRoot, 'start-streamlit-silent.vbs');
-    
-    if (!fs.existsSync(vbsScriptPath)) {
+    // Check if batch file exists
+    const batFilePath = path.join(process.cwd(), 'src', 'app', 'feature-1', 'start_magic_learn.bat');
+    if (!fs.existsSync(batFilePath)) {
       return NextResponse.json({ 
         success: false, 
-        message: 'Startup script not found at: ' + vbsScriptPath
+        message: `Batch file not found at: ${batFilePath}`
       }, { status: 500 });
     }
+
+    console.log('Starting Magic Learn backend...');
     
-    console.log('Launching Streamlit silently via VBScript:', vbsScriptPath);
-    
-    // Spawn VBScript which will run the batch file completely hidden
-    streamlitProcess = spawn('wscript.exe', [vbsScriptPath], {
+    // Start the backend process silently using pythonw (no console window)
+    // Use pythonw.exe instead of python.exe to avoid any console window
+    backendProcess = spawn('pythonw', [backendPath], {
       detached: true,
-      stdio: ['ignore', 'ignore', 'ignore'],
-      cwd: projectRoot,
-      windowsHide: true
+      stdio: 'ignore',
+      cwd: path.dirname(backendPath),
+      windowsHide: true,
+      shell: false
     });
 
     // Unref so the parent process can exit independently
-    streamlitProcess.unref();
+    backendProcess.unref();
 
     // Wait for the server to start and verify it's running
     let attempts = 0;
-    const maxAttempts = 30; // Increased to 30 seconds for more reliable startup
+    const maxAttempts = 20; // 20 seconds max wait
     
-    console.log('Waiting for Streamlit server to start on port 8501...');
+    console.log('Waiting for Magic Learn backend to start on port 5000...');
     
     while (attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      const isRunning = await isPortInUse(8501);
+      const isHealthy = await isBackendHealthy();
       
-      if (isRunning) {
-        console.log(`Streamlit server is running on port 8501 (took ${attempts + 1} seconds)`);
+      if (isHealthy) {
+        console.log(`Magic Learn backend is running (took ${attempts + 1} seconds)`);
+        
+        // Reset heartbeat timer
+        lastHeartbeat = Date.now();
+        
+        // Start heartbeat monitoring (check every 5 seconds)
+        if (!heartbeatInterval) {
+          heartbeatInterval = setInterval(async () => {
+            const timeSinceLastHeartbeat = Date.now() - lastHeartbeat;
+            
+            // If no heartbeat for 15 seconds, assume tab is closed
+            if (timeSinceLastHeartbeat > 15000) {
+              console.log('No heartbeat detected for 15 seconds. Stopping backend...');
+              await killBackendProcess();
+            }
+          }, 5000);
+        }
+        
         return NextResponse.json({ 
           success: true, 
-          message: 'Streamlit server started successfully',
-          url: 'http://localhost:8501',
+          message: 'Magic Learn backend started successfully',
+          url: 'http://localhost:5000',
           startupTime: attempts + 1
         });
       }
       
-      console.log(`Attempt ${attempts + 1}/${maxAttempts} - Server not responding yet...`);
+      console.log(`Attempt ${attempts + 1}/${maxAttempts} - Backend not responding yet...`);
       attempts++;
     }
 
     return NextResponse.json({ 
       success: false, 
-      message: 'Server startup timeout. Please run debug-magic-learn.bat to diagnose the issue.',
-      details: 'The server did not respond on port 8501 within 30 seconds.'
+      message: 'Backend startup timeout. The server did not respond within 20 seconds.',
+      details: 'Please check if Python and required packages are installed.'
     }, { status: 500 });
 
   } catch (error: any) {
-    console.error('Error starting Streamlit:', error);
+    console.error('Error starting Magic Learn backend:', error);
     return NextResponse.json({ 
       success: false, 
-      message: error.message || 'Failed to start Streamlit server'
+      message: error.message || 'Failed to start Magic Learn backend'
     }, { status: 500 });
   }
 }
 
 export async function GET() {
   try {
-    const portInUse = await isPortInUse(8501);
+    const isHealthy = await isBackendHealthy();
     
     return NextResponse.json({ 
-      running: portInUse,
-      url: portInUse ? 'http://localhost:8501' : null
+      running: isHealthy,
+      url: isHealthy ? 'http://localhost:5000' : null
     });
   } catch (error: any) {
     return NextResponse.json({ 
       running: false,
       error: error.message
+    }, { status: 500 });
+  }
+}
+
+// PUT - Heartbeat endpoint (called by frontend to keep backend alive)
+export async function PUT() {
+  try {
+    lastHeartbeat = Date.now();
+    console.log('Heartbeat received at', new Date(lastHeartbeat).toLocaleTimeString());
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Heartbeat received',
+      timestamp: lastHeartbeat
+    });
+  } catch (error: any) {
+    return NextResponse.json({ 
+      success: false, 
+      message: error.message 
+    }, { status: 500 });
+  }
+}
+
+// DELETE - Stop the backend manually
+export async function DELETE() {
+  try {
+    await killBackendProcess();
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Backend stopped successfully' 
+    });
+  } catch (error: any) {
+    console.error('Error stopping backend:', error);
+    return NextResponse.json({ 
+      success: false, 
+      message: error.message || 'Failed to stop backend' 
     }, { status: 500 });
   }
 }

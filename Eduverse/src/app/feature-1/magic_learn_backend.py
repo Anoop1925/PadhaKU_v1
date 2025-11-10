@@ -1,0 +1,437 @@
+"""
+Magic Learn Backend - Complete Implementation
+Exact same functionality as app.py with all three features:
+1. DrawInAir - Hand gesture drawing with MediaPipe
+2. Image Reader - Image upload and analysis  
+3. Plot Crafter - Story generation
+"""
+
+import os
+import cv2
+import base64
+import numpy as np
+from PIL import Image
+import io
+from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
+import google.generativeai as genai
+from mediapipe.python.solutions import hands, drawing_utils
+from dotenv import load_dotenv
+import threading
+import time
+
+# Load environment variables
+load_dotenv()
+
+app = Flask(__name__)
+CORS(app)
+
+# Get API keys from .env - Separate keys for each feature to avoid rate limits
+DRAWINAIR_API_KEY = os.getenv('DRAWINAIR_API_KEY')
+IMAGE_READER_API_KEY = os.getenv('IMAGE_READER_API_KEY')
+PLOT_CRAFTER_API_KEY = os.getenv('PLOT_CRAFTER_API_KEY')
+
+if not all([DRAWINAIR_API_KEY, IMAGE_READER_API_KEY, PLOT_CRAFTER_API_KEY]):
+    raise ValueError("One or more API keys not found in .env file. Please add DRAWINAIR_API_KEY, IMAGE_READER_API_KEY, and PLOT_CRAFTER_API_KEY")
+
+# Global variables for DrawInAir
+camera = None
+camera_lock = threading.Lock()
+imgCanvas = None
+mphands = None
+current_frame = None
+analysis_result = ""
+current_gesture = "None"
+p1, p2 = 0, 0  # Drawing position tracker
+
+def initialize_camera():
+    """Initialize camera and MediaPipe hands (EXACTLY like app.py)"""
+    global camera, imgCanvas, mphands
+    
+    camera = cv2.VideoCapture(0)
+    if not camera.isOpened():
+        return False
+    
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 950)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 550)
+    camera.set(cv2.CAP_PROP_BRIGHTNESS, 130)
+    
+    imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
+    # Support both left and right hands - no discrimination! 🤝
+    mphands = hands.Hands(max_num_hands=2, min_detection_confidence=0.75)
+    
+    return True
+
+def process_frame_with_hands():
+    """
+    Process frame with hand tracking (EXACTLY like app.py)
+    Returns the processed frame with drawing overlay
+    """
+    global camera, imgCanvas, mphands, current_gesture, p1, p2
+    
+    if camera is None or not camera.isOpened():
+        return None
+    
+    success, img = camera.read()
+    if not success or img is None:
+        return None
+    
+    # Resize and flip (EXACTLY like app.py)
+    img = cv2.resize(src=img, dsize=(950, 550))
+    img = cv2.flip(src=img, flipCode=1)
+    imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    
+    # Process hands with MediaPipe (Support both left and right hands)
+    result = mphands.process(image=imgRGB)
+    landmark_list = []
+    hand_label = None  # Track if it's Left or Right hand
+    
+    if result.multi_hand_landmarks:
+        # Get hand label (Left or Right)
+        if result.multi_handedness:
+            hand_label = result.multi_handedness[0].classification[0].label
+        
+        for hand_lms in result.multi_hand_landmarks:
+            # Draw hand landmarks on the BGR image (not RGB)
+            drawing_utils.draw_landmarks(
+                image=img,
+                landmark_list=hand_lms,
+                connections=hands.HAND_CONNECTIONS
+            )
+            
+            # Get landmark coordinates
+            for id, lm in enumerate(hand_lms.landmark):
+                h, w, c = img.shape
+                x, y = lm.x, lm.y
+                cx, cy = int(x * w), int(y * h)
+                landmark_list.append([id, cx, cy])
+    
+    # Identify fingers (Works for both left and right hands)
+    fingers = []
+    if landmark_list:
+        # Thumb detection - different for left vs right hand
+        if hand_label == "Right":
+            # For right hand: thumb is on left side, check if tip is LEFT of base
+            if landmark_list[4][1] < landmark_list[3][1]:
+                fingers.append(1)
+            else:
+                fingers.append(0)
+        else:  # Left hand
+            # For left hand: thumb is on right side, check if tip is RIGHT of base
+            if landmark_list[4][1] > landmark_list[3][1]:
+                fingers.append(1)
+            else:
+                fingers.append(0)
+        
+        # Other fingers - same logic for both hands (check if tip is above base)
+        for id in [8, 12, 16, 20]:
+            if landmark_list[id][2] < landmark_list[id - 2][2]:
+                fingers.append(1)
+            else:
+                fingers.append(0)
+        
+        # Draw finger tips
+        for i in range(0, 5):
+            if fingers[i] == 1:
+                cx, cy = landmark_list[(i + 1) * 4][1], landmark_list[(i + 1) * 4][2]
+                cv2.circle(img=img, center=(cx, cy), radius=5, color=(255, 0, 255), thickness=1)
+    
+    # Handle drawing gestures (EXACTLY like app.py)
+    if len(fingers) == 5:
+        # Thumb + Index = Draw
+        if sum(fingers) == 2 and fingers[0] == fingers[1] == 1:
+            current_gesture = "Drawing"
+            cx, cy = landmark_list[8][1], landmark_list[8][2]
+            
+            if p1 == 0 and p2 == 0:
+                p1, p2 = cx, cy
+            cv2.line(img=imgCanvas, pt1=(p1, p2), pt2=(cx, cy), color=(255, 0, 255), thickness=5)
+            p1, p2 = cx, cy
+        
+        # Thumb + Index + Middle = Move (don't draw)
+        elif sum(fingers) == 3 and fingers[0] == fingers[1] == fingers[2] == 1:
+            current_gesture = "Moving"
+            p1, p2 = 0, 0
+        
+        # Thumb + Middle = Erase
+        elif sum(fingers) == 2 and fingers[0] == fingers[2] == 1:
+            current_gesture = "Erasing"
+            cx, cy = landmark_list[12][1], landmark_list[12][2]
+            
+            if p1 == 0 and p2 == 0:
+                p1, p2 = cx, cy
+            cv2.line(img=imgCanvas, pt1=(p1, p2), pt2=(cx, cy), color=(0, 0, 0), thickness=15)
+            p1, p2 = cx, cy
+        
+        # Thumb + Pinky = Clear
+        elif sum(fingers) == 2 and fingers[0] == fingers[4] == 1:
+            current_gesture = "Clearing"
+            imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
+            p1, p2 = 0, 0
+        
+        # Index + Middle = Analyze
+        elif sum(fingers) == 2 and fingers[1] == fingers[2] == 1:
+            current_gesture = "Analyzing"
+            p1, p2 = 0, 0
+        
+        else:
+            current_gesture = "None"
+            p1, p2 = 0, 0
+    else:
+        current_gesture = "None"
+        p1, p2 = 0, 0
+    
+    # Blend canvas with video feed (EXACTLY like app.py)
+    blended = cv2.addWeighted(src1=img, alpha=0.7, src2=imgCanvas, beta=1, gamma=0)
+    imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
+    _, imgInv = cv2.threshold(src=imgGray, thresh=50, maxval=255, type=cv2.THRESH_BINARY_INV)
+    imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
+    blended = cv2.bitwise_and(src1=blended, src2=imgInv)
+    final_img = cv2.bitwise_or(src1=blended, src2=imgCanvas)
+    
+    return final_img
+
+def generate_frames():
+    """Generate video frames with hand tracking"""
+    global current_frame
+    
+    while True:
+        try:
+            with camera_lock:
+                frame = process_frame_with_hands()
+                
+                if frame is not None:
+                    # Frame is already in BGR format from OpenCV
+                    # Just encode it as JPEG for streaming
+                    ret, buffer = cv2.imencode('.jpg', frame)
+                    if ret:
+                        frame_bytes = buffer.tobytes()
+                        current_frame = frame
+                        
+                        yield (b'--frame\r\n'
+                               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            
+            time.sleep(0.033)  # ~30 FPS
+        except Exception as e:
+            print(f"Error in generate_frames: {e}")
+            time.sleep(0.1)
+
+@app.route('/api/drawinair/start', methods=['POST'])
+def start_drawinair():
+    """Start DrawInAir camera"""
+    try:
+        if initialize_camera():
+            return jsonify({'success': True, 'message': 'Camera started'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to open camera'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/drawinair/stop', methods=['POST'])
+def stop_drawinair():
+    """Stop DrawInAir camera"""
+    global camera, imgCanvas
+    
+    try:
+        if camera is not None:
+            camera.release()
+            camera = None
+        
+        imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
+        
+        return jsonify({'success': True, 'message': 'Camera stopped'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/drawinair/video-feed')
+def video_feed():
+    """Video streaming route"""
+    return Response(generate_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/api/drawinair/gesture', methods=['GET'])
+def get_current_gesture():
+    """Get current hand gesture"""
+    return jsonify({
+        'success': True,
+        'gesture': current_gesture
+    })
+
+@app.route('/api/drawinair/analyze', methods=['POST'])
+def analyze_drawing():
+    """
+    Analyze drawn content with Gemini AI (EXACTLY like app.py)
+    Uses gemini-2.5-flash-lite for better performance and higher limits
+    """
+    global imgCanvas, analysis_result
+    
+    try:
+        if imgCanvas is None:
+            return jsonify({'success': False, 'error': 'No canvas available'}), 400
+        
+        # Convert canvas to PIL Image (EXACTLY like app.py)
+        imgCanvas_rgb = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(imgCanvas_rgb)
+        
+        # Configure Gemini with DrawInAir API key
+        genai.configure(api_key=DRAWINAIR_API_KEY)
+        
+        # Analyze with Gemini 2.5 Flash Lite
+        model = genai.GenerativeModel(model_name='gemini-2.5-flash-lite')
+        prompt = """Analyze the image and provide the following:
+* If a mathematical equation is present:
+   - The equation represented in the image.
+   - The solution to the equation.
+   - A short explanation of the steps taken to arrive at the solution. Also it might present triangle which may have any side not given, assume mostly right angle triangle.
+* If a drawing is present and no equation is detected:
+   - A brief description of the drawn image in simple terms.
+* If only a single text is present in the image, then just return the text only show the text only."""
+        
+        response = model.generate_content([prompt, pil_image])
+        analysis_result = response.text
+        
+        return jsonify({
+            'success': True,
+            'result': analysis_result
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/drawinair/clear', methods=['POST'])
+def clear_canvas():
+    """Clear drawing canvas"""
+    global imgCanvas
+    
+    try:
+        imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
+        return jsonify({'success': True, 'message': 'Canvas cleared'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ==================== IMAGE READER ====================
+
+@app.route('/api/image-reader/analyze', methods=['POST'])
+def analyze_image():
+    """
+    Analyze uploaded image (EXACTLY like app.py)
+    Uses gemini-2.5-flash-lite for better performance and higher limits
+    """
+    try:
+        data = request.json
+        image_data = data.get('imageData')
+        mime_type = data.get('mimeType', 'image/jpeg')
+        instructions = data.get('instructions', '')
+        
+        if not image_data:
+            return jsonify({'error': 'No image data provided'}), 400
+        
+        # Decode base64 image
+        image_bytes = base64.b64decode(image_data)
+        
+        # Create image parts for Gemini (EXACTLY like app.py)
+        image_parts = [{
+            "mime_type": mime_type,
+            "data": image_bytes
+        }]
+        
+        # Configure Gemini with Image Reader API key
+        genai.configure(api_key=IMAGE_READER_API_KEY)
+        
+        # Analyze with Gemini 2.5 Flash Lite
+        model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        prompt = f"Analyze the image and provide details. {instructions if instructions else 'Provide a comprehensive analysis of what you see in the image.'}"
+        
+        response = model.generate_content([prompt, image_parts[0]])
+        
+        return jsonify({
+            'success': True,
+            'result': response.text
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== PLOT CRAFTER ====================
+
+@app.route('/api/plot-crafter/generate', methods=['POST'])
+def generate_plot():
+    """
+    Generate story plot (EXACTLY like app.py)
+    Uses gemini-2.5-flash-lite for better performance and higher limits
+    """
+    try:
+        data = request.json
+        theme = data.get('theme')
+        
+        if not theme:
+            return jsonify({'error': 'No theme provided'}), 400
+        
+        # Configure Gemini with Plot Crafter API key
+        genai.configure(api_key=PLOT_CRAFTER_API_KEY)
+        
+        # Generate plot with Gemini 2.5 Flash Lite
+        model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        prompt = f"""Create a detailed plot based on the theme: {theme}
+
+Include:
+1. Story Title
+2. Main Characters (with brief descriptions)
+3. Setting
+4. Plot Summary
+5. Key Conflicts
+6. Resolution
+
+Make it creative and engaging!"""
+        
+        response = model.generate_content([prompt])
+        
+        return jsonify({
+            'success': True,
+            'result': response.text
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== HEALTH CHECK ====================
+
+@app.route('/api/health', methods=['GET'])
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'Magic Learn Backend',
+        'features': ['DrawInAir', 'Image Reader', 'Plot Crafter']
+    })
+
+if __name__ == '__main__':
+    print("=" * 70)
+    print("🚀 Magic Learn Backend API - Complete Implementation")
+    print("=" * 70)
+    print(f"📍 Server: http://localhost:5000")
+    print(f"✨ Features: DrawInAir | Image Reader | Plot Crafter")
+    print("-" * 70)
+    print("📊 DrawInAir Endpoints:")
+    print("   - POST /api/drawinair/start        - Start camera")
+    print("   - POST /api/drawinair/stop         - Stop camera")
+    print("   - GET  /api/drawinair/video-feed   - Video stream")
+    print("   - GET  /api/drawinair/gesture      - Current gesture")
+    print("   - POST /api/drawinair/analyze      - Analyze drawing")
+    print("   - POST /api/drawinair/clear        - Clear canvas")
+    print("-" * 70)
+    print("📊 Image Reader Endpoints:")
+    print("   - POST /api/image-reader/analyze   - Analyze image")
+    print("-" * 70)
+    print("📊 Plot Crafter Endpoints:")
+    print("   - POST /api/plot-crafter/generate  - Generate plot")
+    print("-" * 70)
+    print("📊 General:")
+    print("   - GET  /health                     - Health check")
+    print("=" * 70)
+    
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)

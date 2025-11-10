@@ -74,7 +74,7 @@ export default function Feature2Page() {
                 setActiveTab("myCourses");
                 setShowModal(true);
               }}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-[#387BFF] to-[#2563eb] hover:from-[#2563eb] hover:to-[#1d4ed8] text-white rounded-lg font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Create New Course</span>
@@ -188,7 +188,7 @@ export default function Feature2Page() {
             <div className="mb-12">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Perfect For</h3>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+                <div className="p-5 rounded-lg bg-gradient-to-br from-blue-50 to-blue-50 border border-blue-100">
                   <div className="w-10 h-10 rounded-lg bg-blue-500 text-white flex items-center justify-center mb-3">
                     <GraduationCap className="w-5 h-5" />
                   </div>

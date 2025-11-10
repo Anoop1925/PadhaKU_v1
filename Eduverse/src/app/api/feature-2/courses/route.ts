@@ -1,29 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function GET(req: NextRequest) {
-  // await ensureMigrations(); // Disabled to avoid masking DB errors
-  
   const { searchParams } = new URL(req.url);
   const cid = searchParams.get("cid");
+  
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
     if (cid) {
-      const result = await pool.query("SELECT * FROM courses WHERE cid = $1", [cid]);
-      if (result.rows.length === 0) return NextResponse.json({ error: "Course not found" }, { status: 404 });
-      const courseData = result.rows[0].coursejson;
-      // Add database fields to the course data
-      courseData.cid = result.rows[0].cid;
-      courseData.id = result.rows[0].id;
-      if (result.rows[0].bannerimageurl) {
-        courseData.bannerImageUrl = result.rows[0].bannerimageurl;
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('cid', cid)
+        .single();
+        
+      if (error) throw error;
+      if (!data) return NextResponse.json({ error: "Course not found" }, { status: 404 });
+      
+      const courseData = data.coursejson;
+      courseData.cid = data.cid;
+      courseData.id = data.id;
+      if (data.bannerimageurl) {
+        courseData.bannerImageUrl = data.bannerimageurl;
       }
       return NextResponse.json({ course: courseData });
     }
-    const result = await pool.query("SELECT * FROM courses ORDER BY id DESC");
+    
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .order('id', { ascending: false });
+      
+    if (error) throw error;
+    
     return NextResponse.json({ 
-      courses: result.rows.map(row => {
+      courses: (data || []).map(row => {
         const courseData = row.coursejson;
-        // Add database fields to each course
         courseData.cid = row.cid;
         courseData.id = row.id;
         if (row.bannerimageurl) {
@@ -39,11 +55,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // await ensureMigrations(); // Disabled to avoid masking DB errors
-  
   const { course } = await req.json();
+  
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const userEmail = course.userEmail || "demo@user.com";
+    
     // Sanitize and validate fields
     const cid = course.cid || course.name;
     const name = course.name || "";
@@ -52,7 +69,7 @@ export async function POST(req: NextRequest) {
     const includeVideo = !!course.includeVideo;
     const level = course.level || "";
     const category = course.category || "";
-    const courseJson = JSON.stringify(course);
+    const courseJson = course;
     const bannerImageUrl = course.bannerImageUrl || "";
 
     // Check for required fields
@@ -60,26 +77,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required course fields" }, { status: 400 });
     }
 
-    await pool.query(
-      `INSERT INTO courses (cid, name, description, noOfChapters, includeVideo, level, category, courseJson, userEmail, bannerImageUrl)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [
+    const { data, error } = await supabase
+      .from('courses')
+      .insert({
         cid,
         name,
         description,
-        noOfChapters,
-        includeVideo,
+        noofchapters: noOfChapters,
+        includevideo: includeVideo,
         level,
         category,
-        courseJson,
-        userEmail,
-        bannerImageUrl
-      ]
-    );
-    // Fetch the numeric id
-    const idResult = await pool.query('SELECT id FROM courses WHERE cid = $1', [cid]);
-    const courseId = idResult.rows[0]?.id;
-    return NextResponse.json({ success: true, courseId });
+        coursejson: courseJson,
+        useremail: userEmail,
+        bannerimageurl: bannerImageUrl
+      })
+      .select('id')
+      .single();
+      
+    if (error) throw error;
+    
+    return NextResponse.json({ success: true, courseId: data.id });
   } catch (error) {
     console.error("DB Insert Error:", error);
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
@@ -87,11 +104,18 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  // await ensureMigrations(); // Disabled to avoid masking DB errors
-  
   const { cid } = await req.json();
+  
   try {
-    await pool.query("DELETE FROM courses WHERE cid = $1", [cid]);
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const { error } = await supabase
+      .from('courses')
+      .delete()
+      .eq('cid', cid);
+      
+    if (error) throw error;
+    
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });

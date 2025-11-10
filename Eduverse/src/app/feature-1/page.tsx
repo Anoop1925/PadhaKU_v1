@@ -10,14 +10,14 @@ export default function Feature1Page() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const STREAMLIT_URL = "http://localhost:8501";
+  const MAGIC_LEARN_URL = "/magic-learn"; // Updated to use Next.js route
 
   const handleLaunch = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // First, check if server is already running
+      // First, check if backend is already running
       const checkResponse = await fetch('/api/magic-learn/start', {
         method: 'GET',
       });
@@ -25,7 +25,7 @@ export default function Feature1Page() {
       const checkData = await checkResponse.json();
       
       if (!checkData.running) {
-        // Server not running, start it
+        // Backend not running, start it
         const startResponse = await fetch('/api/magic-learn/start', {
           method: 'POST',
         });
@@ -33,21 +33,21 @@ export default function Feature1Page() {
         const startData = await startResponse.json();
         
         if (!startData.success) {
-          throw new Error(startData.message || 'Failed to start Magic Learn server');
+          throw new Error(startData.message || 'Failed to start Magic Learn backend');
         }
         
-        // Wait a bit more for the server to be fully ready
+        // Wait a bit more for the backend to be fully ready
         await new Promise(resolve => setTimeout(resolve, 1500));
       }
       
-      // Open in new tab
-      window.open(STREAMLIT_URL, "_blank");
+      // Open Magic Learn page in new tab
+      window.open(MAGIC_LEARN_URL, "_blank");
       
       setLoading(false);
       
     } catch (err: any) {
       console.error('Error launching Magic Learn:', err);
-      setError(err.message || 'Failed to launch Magic Learn. Please make sure Python and Streamlit are installed.');
+      setError(err.message || 'Failed to launch Magic Learn. Please make sure Python and required packages are installed.');
       setLoading(false);
     }
   };

@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { User, Megaphone, BookOpen, ClipboardList, Hand, GraduationCap, CheckCircle2, Clock, Bell, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react"; // Icon imports
+import { User, Megaphone, BookOpen, ClipboardList, Hand, GraduationCap, CheckCircle2, Clock, Bell, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Trophy } from "lucide-react"; // Icon imports
 import { addDays, format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday } from 'date-fns';
 
 interface Course {
@@ -34,12 +34,69 @@ export default function Dashboard() {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [showAllCourses, setShowAllCourses] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
+  
+  // Profile data states
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [weeklyRank, setWeeklyRank] = useState<number | null>(null);
+  const [coursesCompleted, setCoursesCompleted] = useState(0);
+  const [chaptersCompleted, setChaptersCompleted] = useState(0);
 
   useEffect(() => {
     if (session === null) {
       router.push("/auth");
     }
   }, [session, router]);
+
+  // Fetch user points and statistics
+  useEffect(() => {
+    if (!session?.user?.email) return;
+
+    // Fetch user points data
+    fetch(`/api/feature-5/points?userEmail=${encodeURIComponent(session.user.email)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        console.log('User points data:', data);
+        setTotalPoints(data.points || 0);
+        setCoursesCompleted(data.totalCoursesCompleted || 0);
+        setChaptersCompleted(data.totalChaptersCompleted || 0);
+      })
+      .catch((error) => console.error("Error fetching points:", error));
+
+    // Fetch leaderboard to get weekly rank
+    fetch('/api/feature-5/leaderboard')
+      .then((res) => res.json())
+      .then((data) => {
+        console.log('Leaderboard data:', data);
+        // Try to find user by name first (more reliable)
+        if (session?.user?.name) {
+          const userName = session.user.name.toLowerCase();
+          const userFirstName = session.user.name.split(' ')[0].toLowerCase();
+          
+          const userRank = data.leaderboard?.findIndex((entry: any) => {
+            const entryName = entry.displayName.toLowerCase();
+            const entryFirstName = entry.displayName.split(' ')[0].toLowerCase();
+            return entryName.includes(userFirstName) || 
+                   userName.includes(entryFirstName) ||
+                   userFirstName === entryFirstName;
+          });
+          
+          if (userRank !== -1 && userRank !== undefined) {
+            console.log('User rank found:', userRank + 1);
+            setWeeklyRank(userRank + 1);
+            // Also update points from leaderboard if not fetched above
+            const userEntry = data.leaderboard[userRank];
+            if (userEntry) {
+              setTotalPoints(userEntry.points || 0);
+              setCoursesCompleted(userEntry.totalCoursesCompleted || 0);
+              setChaptersCompleted(userEntry.totalChaptersCompleted || 0);
+            }
+          } else {
+            console.log('User not found in leaderboard');
+          }
+        }
+      })
+      .catch((error) => console.error("Error fetching rank:", error));
+  }, [session]);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -110,7 +167,7 @@ export default function Dashboard() {
     { bg: 'bg-gradient-to-br from-yellow-100 to-lime-100', text: 'text-yellow-700', border: 'border-yellow-200', badge: 'bg-yellow-200 text-yellow-800' },
     { bg: 'bg-gradient-to-br from-emerald-100 to-teal-100', text: 'text-emerald-700', border: 'border-emerald-200', badge: 'bg-emerald-200 text-emerald-800' },
     { bg: 'bg-gradient-to-br from-blue-100 to-cyan-100', text: 'text-blue-700', border: 'border-blue-200', badge: 'bg-blue-200 text-blue-800' },
-    { bg: 'bg-gradient-to-br from-indigo-100 to-purple-100', text: 'text-indigo-700', border: 'border-indigo-200', badge: 'bg-indigo-200 text-indigo-800' },
+    { bg: 'bg-gradient-to-br from-blue-100 to-blue-100', text: 'text-[#387BFF]', border: 'border-blue-200', badge: 'bg-blue-200 text-blue-800' },
     { bg: 'bg-gradient-to-br from-purple-100 to-fuchsia-100', text: 'text-purple-700', border: 'border-purple-200', badge: 'bg-purple-200 text-purple-800' },
     { bg: 'bg-gradient-to-br from-pink-100 to-rose-100', text: 'text-pink-700', border: 'border-pink-200', badge: 'bg-pink-200 text-pink-800' },
   ];
@@ -161,7 +218,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col min-h-screen bg-[#fafbfc]">
       {/* Top Bar */}
-      <div className="px-10 py-8 bg-gradient-to-r from-[#444fd6] via-[#5d87ee] to-[#96b0f3] rounded-3xl mx-8 mt-6">
+      <div className="px-10 py-8 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 rounded-3xl mx-8 mt-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-5">
             <div className="w-16 h-16 rounded-2xl bg-white/90 flex items-center justify-center backdrop-blur-sm">
@@ -305,7 +362,7 @@ export default function Dashboard() {
                     onClick={() => setSelectedDay(day)}
                     className={`min-h-[90px] p-2 rounded-lg cursor-pointer transition-all ${
                       isCurrentDay
-                        ? 'bg-[#444fd6] shadow-sm'
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-500 shadow-sm'
                         : isSelected
                         ? 'bg-[#d0dffc] ring-2 ring-[#444fd6]'
                         : 'bg-slate-50 hover:bg-slate-100'
@@ -333,7 +390,7 @@ export default function Dashboard() {
                             key={assignment.id}
                             className={`text-[10px] px-1.5 py-0.5 rounded border truncate ${
                               isCurrentDay 
-                                ? 'bg-white/90 text-indigo-700 border-white/50' 
+                                ? 'bg-white/90 text-[#387BFF] border-white/50' 
                                 : `${colors.bg} ${colors.text} ${colors.border}`
                             }`}
                             title={assignment.title}
@@ -357,25 +414,27 @@ export default function Dashboard() {
           </div>
 
           {/* Profile / Event Details Card */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 flex flex-col">
+          <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col h-full shadow-sm">
             {!selectedDay ? (
               <>
                 {/* Profile View */}
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-10 h-10 rounded-lg bg-[#d0dffc] flex items-center justify-center">
-                    <User className="w-5 h-5 text-[#444fd6]" />
+                <div className="flex items-center gap-2 mb-5">
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <User className="w-5 h-5 text-[#387BFF]" />
                   </div>
-                  <h2 className="text-xl font-semibold text-slate-800">Profile</h2>
+                  <h2 className="text-lg font-semibold text-slate-800">Profile</h2>
                 </div>
                 
-                <div className="flex flex-col items-center mb-6">
-                  <div className="w-20 h-20 rounded-xl border-2 border-slate-200 mb-4 overflow-hidden bg-[#d0dffc] flex items-center justify-center">
+                {/* Centered Profile Card */}
+                <div className="flex flex-col items-center">
+                  {/* Circular Avatar - medium size */}
+                  <div className="w-22 h-22 rounded-full border-3 border-blue-200 overflow-hidden bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md mb-3">
                     {session?.user?.image ? (
                       <Image 
                         src={session.user.image} 
                         alt="Profile" 
-                        width={80}
-                        height={80}
+                        width={88}
+                        height={88}
                         className="w-full h-full object-cover"
                         unoptimized={true}
                         onError={(e) => {
@@ -384,7 +443,7 @@ export default function Dashboard() {
                           const parent = target.parentElement;
                           if (parent) {
                             parent.innerHTML = `
-                              <div class="w-full h-full flex items-center justify-center bg-[#444fd6] text-white font-bold text-2xl">
+                              <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-500 to-orange-600 text-white font-bold text-3xl">
                                 ${session?.user?.name?.charAt(0)?.toUpperCase() || 'U'}
                               </div>
                             `;
@@ -392,27 +451,92 @@ export default function Dashboard() {
                         }}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-[#444fd6] text-white font-bold text-2xl">
+                      <div className="w-full h-full flex items-center justify-center text-white font-bold text-3xl">
                         {session?.user?.name?.charAt(0)?.toUpperCase() || 'U'}
                       </div>
                     )}
                   </div>
                   
-                  <div className="text-center">
-                    <div className="font-semibold text-base text-slate-800 mb-1">{session?.user?.name || 'User'}</div>
-                    <div className="text-sm text-slate-500">{session?.user?.email || 'No email'}</div>
+                  {/* User Info - balanced */}
+                  <div className="text-center mb-4 pb-3 border-b border-slate-100 w-full">
+                    <div className="font-bold text-lg text-slate-800 mb-1">
+                      {session?.user?.name || 'User'}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {session?.user?.email || 'No email'}
+                    </div>
+                  </div>
+
+                  {/* Stats List - Medium spacing */}
+                  <div className="w-full space-y-2">
+                    {/* Total Points */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-white hover:shadow-md transition-all duration-200 border border-emerald-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-md">
+                          <GraduationCap className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-slate-700">Total Points</span>
+                      </div>
+                      <span className="text-lg font-bold text-emerald-600">{totalPoints.toLocaleString()}</span>
+                    </div>
+
+                    {/* Weekly Rank */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-purple-50 to-white hover:shadow-md transition-all duration-200 border border-purple-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shadow-md">
+                          <Trophy className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-slate-700">Weekly Rank</span>
+                      </div>
+                      <span className="text-lg font-bold text-purple-600">
+                        {weeklyRank ? `#${weeklyRank}` : '-'}
+                      </span>
+                    </div>
+
+                    {/* Assignments Completed */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-orange-50 to-white hover:shadow-md transition-all duration-200 border border-orange-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-md">
+                          <CheckCircle2 className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-slate-700">Assignments</span>
+                      </div>
+                      <span className="text-lg font-bold text-orange-600">{assignmentsCompleted}</span>
+                    </div>
+
+                    {/* Chapters Completed */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-cyan-50 to-white hover:shadow-md transition-all duration-200 border border-cyan-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center shadow-md">
+                          <BookOpen className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-slate-700">Chapters Done</span>
+                      </div>
+                      <span className="text-lg font-bold text-cyan-600">{chaptersCompleted}</span>
+                    </div>
+
+                    {/* Courses Completed */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-pink-50 to-white hover:shadow-md transition-all duration-200 border border-pink-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center shadow-md">
+                          <Hand className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-slate-700">Courses Completed</span>
+                      </div>
+                      <span className="text-lg font-bold text-pink-600">{coursesCompleted}</span>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="mt-auto pt-4 border-t border-slate-200">
+                <div className="mt-auto pt-3 border-t border-slate-200">
                   <div className="text-center">
                     <div className="text-xs text-slate-500 mb-1">Today</div>
-                    <div className="text-base font-medium text-slate-700">{format(new Date(), 'EEEE, dd MMMM')}</div>
+                    <div className="text-sm font-medium text-slate-700">{format(new Date(), 'EEEE, dd MMMM')}</div>
                   </div>
                 </div>
 
                 {/* Hint to select day */}
-                <div className="mt-4 p-3 rounded-lg bg-[#d0dffc] border border-[#444fd6]/20">
+                <div className="mt-3 p-2.5 rounded-lg bg-[#d0dffc] border border-[#444fd6]/20">
                   <div className="flex items-center justify-center gap-2 text-xs text-slate-600">
                     <CalendarIcon className="w-4 h-4 text-[#444fd6]" />
                     <p>Select a day from the calendar to view events</p>
@@ -449,7 +573,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Events List */}
-                <div className="flex-1 overflow-y-auto pr-2 space-y-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
                   {getAssignmentsForDay(selectedDay).length > 0 ? (
                     getAssignmentsForDay(selectedDay).map((assignment) => {
                       const colors = getColorForAssignment(assignment.id);
@@ -501,9 +625,20 @@ export default function Dashboard() {
                                 <ClipboardList className="w-4 h-4 text-slate-400" />
                                 <span className="text-xs font-medium text-slate-500">Description</span>
                               </div>
-                              <div className="text-sm text-slate-700 leading-relaxed bg-white p-3 rounded-lg border border-slate-200">
-                                {assignment.description}
-                              </div>
+                              <div 
+                                className="text-sm text-slate-700 leading-relaxed text-justify bg-white p-3 rounded-lg border border-slate-200 overflow-hidden"
+                                style={{ 
+                                  wordWrap: 'break-word',
+                                  overflowWrap: 'anywhere',
+                                  whiteSpace: 'pre-wrap'
+                                }}
+                                dangerouslySetInnerHTML={{
+                                  __html: assignment.description.replace(
+                                    /(https?:\/\/[^\s]+)/g,
+                                    '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline break-all">$1</a>'
+                                  )
+                                }}
+                              />
                             </div>
                           )}
 
@@ -588,12 +723,25 @@ export default function Dashboard() {
             <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
               {announcements[selectedCourseId || ""]?.length > 0 ? (
                 announcements[selectedCourseId || ""].map((a) => (
-                  <div key={a.id} className="p-4 rounded-lg bg-[#f5d0e0] border border-[#ec4899]/30 hover:bg-[#f0b8d5] transition-colors">
-                    <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-white/60 flex items-center justify-center flex-shrink-0">
-                        <Megaphone className="w-4 h-4 text-[#ec4899]" />
+                  <div key={a.id} className="pl-2 pr-3 py-3 rounded-lg bg-[#f5d0e0] border border-[#ec4899]/30 hover:bg-[#f0b8d5] transition-colors">
+                    <div className="flex items-start gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-white/60 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Megaphone className="w-3.5 h-3.5 text-[#ec4899]" />
                       </div>
-                      <p className="text-sm text-slate-700 leading-relaxed">{a.text}</p>
+                      <div 
+                        className="text-sm text-slate-700 leading-relaxed text-justify flex-1 overflow-hidden"
+                        style={{ 
+                          wordWrap: 'break-word',
+                          overflowWrap: 'anywhere',
+                          whiteSpace: 'pre-wrap'
+                        }}
+                        dangerouslySetInnerHTML={{
+                          __html: a.text.replace(
+                            /(https?:\/\/[^\s]+)/g,
+                            '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline break-all">$1</a>'
+                          )
+                        }}
+                      />
                     </div>
                   </div>
                 ))
@@ -618,15 +766,30 @@ export default function Dashboard() {
             <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
               {assignments[selectedCourseId || ""]?.length > 0 ? (
                 assignments[selectedCourseId || ""].map((assignment) => (
-                  <div key={assignment.id} className="p-4 rounded-lg bg-[#e3d4f0] border border-[#8b5cf6]/30 hover:bg-[#d6bfe8] transition-colors">
-                    <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-white/60 flex items-center justify-center flex-shrink-0">
-                        <ClipboardList className="w-4 h-4 text-[#8b5cf6]" />
+                  <div key={assignment.id} className="pl-2 pr-3 py-3 rounded-lg bg-[#e3d4f0] border border-[#8b5cf6]/30 hover:bg-[#d6bfe8] transition-colors">
+                    <div className="flex items-start gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-white/60 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <ClipboardList className="w-3.5 h-3.5 text-[#8b5cf6]" />
                       </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-slate-800 mb-1">{assignment.title}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-slate-800 mb-1 overflow-hidden" style={{ wordWrap: 'break-word', overflowWrap: 'anywhere' }}>
+                          {assignment.title}
+                        </div>
                         {assignment.description && (
-                          <div className="text-sm text-slate-600 leading-relaxed">{assignment.description}</div>
+                          <div 
+                            className="text-sm text-slate-600 leading-relaxed text-justify overflow-hidden"
+                            style={{ 
+                              wordWrap: 'break-word',
+                              overflowWrap: 'anywhere',
+                              whiteSpace: 'pre-wrap'
+                            }}
+                            dangerouslySetInnerHTML={{
+                              __html: assignment.description.replace(
+                                /(https?:\/\/[^\s]+)/g,
+                                '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline break-all">$1</a>'
+                              )
+                            }}
+                          />
                         )}
                       </div>
                     </div>

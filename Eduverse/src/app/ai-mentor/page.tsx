@@ -26,8 +26,8 @@ const AboutContent = () => {
           </div>
 
           <div className="flex gap-4">
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-              <MessageCircle className="w-5 h-5 text-indigo-600" />
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+              <MessageCircle className="w-5 h-5 text-[#387BFF]" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-900 mb-1">2. Ask Questions</h3>
@@ -77,13 +77,13 @@ const AboutContent = () => {
             </p>
           </div>
 
-          <div className="p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all">
+          <div className="p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all">
             <div className="flex items-center gap-3 mb-2">
-              <Clock className="w-5 h-5 text-indigo-500" />
+              <Clock className="w-5 h-5 text-[#387BFF]" />
               <h3 className="font-semibold text-gray-900">24/7 Availability</h3>
             </div>
             <p className="text-sm text-gray-600">
-              Get instant help anytime, anywhere - your personal tutor is always ready
+              Get help anytime, anywhere - your AI mentor never sleeps
             </p>
           </div>
 
@@ -121,7 +121,7 @@ const AboutContent = () => {
             <p className="text-sm text-gray-600">Get instant explanations for tough problems</p>
           </div>
 
-          <div className="p-5 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+          <div className="p-5 rounded-lg bg-gradient-to-br from-blue-50 to-blue-50 border border-blue-100">
             <div className="w-10 h-10 rounded-lg bg-blue-500 text-white flex items-center justify-center mb-3">
               <Lightbulb className="w-5 h-5" />
             </div>
@@ -129,8 +129,8 @@ const AboutContent = () => {
             <p className="text-sm text-gray-600">Understand difficult topics through conversation</p>
           </div>
 
-          <div className="p-5 rounded-lg bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100">
-            <div className="w-10 h-10 rounded-lg bg-indigo-500 text-white flex items-center justify-center mb-3">
+          <div className="p-5 rounded-lg bg-gradient-to-br from-blue-50 to-blue-50 border border-blue-100">
+            <div className="w-10 h-10 rounded-lg bg-[#387BFF] text-white flex items-center justify-center mb-3">
               <Brain className="w-5 h-5" />
             </div>
             <h4 className="font-semibold text-gray-900 mb-1">Exam Prep</h4>
@@ -197,7 +197,7 @@ export default function AiMentorPage() {
             </div>
             <button
               onClick={() => setActiveTab("chat")}
-              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-lg font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-[#387BFF] to-[#2563eb] hover:from-[#2563eb] hover:to-[#1d4ed8] text-white rounded-lg font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
               <span>Start Learning</span>

@@ -31,17 +31,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       {/* Fixed Sidebar */}
       <aside className="fixed left-0 top-0 h-screen w-[280px] bg-white border-r border-slate-200 hidden lg:flex flex-col shadow-sm z-50">
         {/* Logo Section */}
-        <div className="px-6 py-6 border-b border-slate-200">
+        <div className="pt-6 pr-8 pb-5 pl-3 border-b border-slate-200">
           <button
             onClick={() => router.push('/')}
             className="flex items-center gap-3 group focus:outline-none"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#444fd6] to-[#5d87ee] flex items-center justify-center">
-              <LayoutDashboard className="w-6 h-6 text-white" />
+            <div className="relative h-16 w-[237px]">
+              <Image
+                src="/Main-logo.png"
+                alt="PadhaKU Logo"
+                fill
+                className="object-contain text-transparent"
+              />
             </div>
-            <span className="text-xl font-bold text-slate-800 group-hover:text-[#444fd6] transition-colors">
-              EduVerse
-            </span>
+
           </button>
         </div>
 
@@ -62,7 +65,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       : item.isMagic
                       ? 'text-slate-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50'
                       : isActive
-                      ? 'bg-[#444fd6] text-white shadow-md'
+                      ? 'bg-[#387BFF] text-white shadow-md'
                       : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
