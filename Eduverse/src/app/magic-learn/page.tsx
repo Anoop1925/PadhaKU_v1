@@ -440,7 +440,7 @@ function AboutContent({ theme }: { theme: 'light' | 'dark' }) {
           <p className={`text-sm mb-4 transition-colors duration-300 ${
             theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
           }`}>
-            Generate creative story plots and narratives based on your themes. Perfect for creative writing practice.
+            Learn educational topics through engaging story narratives with AI-generated 16:9 visualizations.
           </p>
           <ul className="space-y-2 text-sm">
             <li className="flex items-start gap-2">
@@ -448,7 +448,7 @@ function AboutContent({ theme }: { theme: 'light' | 'dark' }) {
               <span className={`transition-colors duration-300 ${
                 theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                Creative plot generation
+                Educational topic visualization
               </span>
             </li>
             <li className="flex items-start gap-2">
@@ -456,7 +456,7 @@ function AboutContent({ theme }: { theme: 'light' | 'dark' }) {
               <span className={`transition-colors duration-300 ${
                 theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                Character development
+                Concept explanation narratives
               </span>
             </li>
             <li className="flex items-start gap-2">
@@ -464,7 +464,7 @@ function AboutContent({ theme }: { theme: 'light' | 'dark' }) {
               <span className={`transition-colors duration-300 ${
                 theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                Story structure guidance
+                Learning through storytelling
               </span>
             </li>
           </ul>
@@ -2299,55 +2299,98 @@ function ImageReaderTab({ theme }: { theme: 'light' | 'dark' }) {
 }
 
 function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
-  const [storyTheme, setStoryTheme] = useState('')
+  const [educationalTopic, setEducationalTopic] = useState('')
   const [plotResult, setPlotResult] = useState<string>('')
+  const [generatedImage, setGeneratedImage] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
   const [error, setError] = useState<string>('')
 
   const generatePlot = async () => {
-    if (!storyTheme.trim()) return
+    if (!educationalTopic.trim()) return
 
     setIsGenerating(true)
+    setIsGeneratingImage(true)
     setError('')
+    setGeneratedImage('')
+    setPlotResult('')
     
     try {
-      const response = await fetch('http://localhost:5000/api/plot-crafter/generate', {
+      // Generate educational visualization image first
+      const imageResponse = await fetch('/api/magic-learn/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theme: storyTheme })
+        body: JSON.stringify({ topic: educationalTopic })
       })
 
-      const data = await response.json()
+      const imageData = await imageResponse.json()
       
-      if (data.success) {
-        setPlotResult(data.result)
-      } else {
-        setError(data.error || 'Plot generation failed')
+      if (imageData.success && imageData.imageUrl) {
+        setGeneratedImage(imageData.imageUrl)
+      }
+      
+      setIsGeneratingImage(false)
+      
+      // Then generate educational narrative
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+        
+        const response = await fetch('http://localhost:5000/api/plot-crafter/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ theme: educationalTopic, educational: true }),
+          signal: controller.signal
+        })
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          throw new Error(`Backend returned status ${response.status}`)
+        }
+
+        const data = await response.json()
+        
+        if (data.success) {
+          setPlotResult(data.result)
+        } else {
+          setError(data.error || 'Educational narrative generation failed')
+        }
+      } catch (narrativeErr: any) {
+        console.error('Narrative generation error:', narrativeErr)
+        if (narrativeErr.name === 'AbortError') {
+          setError('Request timeout. The server took too long to respond.')
+        } else if (narrativeErr.message.includes('fetch')) {
+          setError('Failed to connect to backend. Make sure the Flask server is running on port 5000.')
+        } else {
+          setError('Failed to generate narrative. Please try again.')
+        }
       }
     } catch (err) {
-      console.error('Generation error:', err)
-      setError('Failed to generate plot. Make sure backend is running on port 5000.')
+      console.error('Image generation error:', err)
+      setError('Failed to generate image. Please try again.')
     } finally {
       setIsGenerating(false)
+      setIsGeneratingImage(false)
     }
   }
 
   const exampleThemes = [
     {
-      title: "Fantasy Adventure",
-      description: "A young wizard discovers a forgotten prophecy"
+      title: "Physics - Refraction of Light",
+      description: "How light bends when passing through different mediums"
     },
     {
-      title: "Sci-Fi Mystery",
-      description: "Artificial intelligence gains consciousness in a space station"
+      title: "Biology - Photosynthesis",
+      description: "How plants convert sunlight into energy"
     },
     {
-      title: "Tech Thriller",
-      description: "A programmer uncovers a conspiracy in virtual reality"
+      title: "Chemistry - Water Cycle",
+      description: "The continuous movement of water on Earth"
     },
     {
-      title: "Historical Adventure",
-      description: "Time travelers try to prevent a historical disaster"
+      title: "Mathematics - Pythagorean Theorem",
+      description: "Understanding right triangles and their properties"
     }
   ]
 
@@ -2361,9 +2404,9 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
       }`}>
         <div className="flex items-center gap-3 mb-2">
           <BookOpen className="h-6 w-6" />
-          <h2 className="text-2xl font-bold">Plot Crafter - Story Generation</h2>
+          <h2 className="text-2xl font-bold">Plot Crafter - Educational Narratives</h2>
         </div>
-        <p className="text-white/90">Generate creative story plots and narratives based on your themes using AI.</p>
+        <p className="text-white/90">Learn educational topics through engaging story narratives with AI-generated visualizations.</p>
       </div>
 
       {/* Instructions Section - 2 Column Layout */}
@@ -2395,12 +2438,12 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                   <p className={`font-medium transition-colors duration-300 ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}>
-                    Enter Your Theme
+                    Enter Educational Topic
                   </p>
                   <p className={`text-xs mt-1 transition-colors duration-300 ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                   }`}>
-                    Describe the genre, setting, or concept for your story
+                    Choose any subject like physics, biology, chemistry, or math
                   </p>
                 </div>
               </div>
@@ -2419,7 +2462,7 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                   <p className={`text-xs mt-1 transition-colors duration-300 ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                   }`}>
-                    AI will create a complete plot outline for you
+                    AI creates a visualization and educational narrative
                   </p>
                 </div>
               </div>
@@ -2433,12 +2476,12 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                   <p className={`font-medium transition-colors duration-300 ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}>
-                    Refine and Expand
+                    Learn Through Story
                   </p>
                   <p className={`text-xs mt-1 transition-colors duration-300 ${
                     theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                   }`}>
-                    Use the generated plot as a foundation for your story
+                    Understand concepts through engaging narrative format
                   </p>
                 </div>
               </div>
@@ -2465,7 +2508,7 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                 <span className={`font-medium transition-colors duration-300 ${
                   theme === 'dark' ? 'text-purple-300' : 'text-purple-900'
                 }`}>
-                  Story Title
+                  16:9 Visualization
                 </span>
               </div>
               <div className={`p-4 rounded-lg text-center border transition-colors duration-300 ${
@@ -2476,7 +2519,7 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                 <span className={`font-medium transition-colors duration-300 ${
                   theme === 'dark' ? 'text-pink-300' : 'text-pink-900'
                 }`}>
-                  Characters
+                  Narrative Title
                 </span>
               </div>
               <div className={`p-4 rounded-lg text-center border transition-colors duration-300 ${
@@ -2487,7 +2530,7 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                 <span className={`font-medium transition-colors duration-300 ${
                   theme === 'dark' ? 'text-blue-300' : 'text-blue-900'
                 }`}>
-                  Setting
+                  Concept Explanation
                 </span>
               </div>
               <div className={`p-4 rounded-lg text-center border transition-colors duration-300 ${
@@ -2498,7 +2541,7 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                 <span className={`font-medium transition-colors duration-300 ${
                   theme === 'dark' ? 'text-green-300' : 'text-green-900'
                 }`}>
-                  Plot Summary
+                  Learning Story
                 </span>
               </div>
             </div>
@@ -2532,12 +2575,12 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                 <p className={`font-medium transition-colors duration-300 ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  Be Specific About Genre
+                  Be Specific About Topic
                 </p>
                 <p className={`text-xs mt-1 transition-colors duration-300 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  Mention if it's fantasy, sci-fi, mystery, romance, etc.
+                  Use precise terms like "Refraction of Light" instead of just "Light"
                 </p>
               </div>
             </div>
@@ -2553,12 +2596,12 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                 <p className={`font-medium transition-colors duration-300 ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  Include Character Types
+                  Include Subject Area
                 </p>
                 <p className={`text-xs mt-1 transition-colors duration-300 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  Specify roles like detective, wizard, or scientist
+                  Specify Physics, Biology, Chemistry, or Mathematics
                 </p>
               </div>
             </div>
@@ -2574,12 +2617,12 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                 <p className={`font-medium transition-colors duration-300 ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  Describe the Setting
+                  Mention Grade Level
                 </p>
                 <p className={`text-xs mt-1 transition-colors duration-300 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  Time period, location, or unique world details
+                  Add context like "Middle School" or "High School" for appropriate explanations
                 </p>
               </div>
             </div>
@@ -2595,12 +2638,12 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                 <p className={`font-medium transition-colors duration-300 ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  Add Unique Elements
+                  Add Context Details
                 </p>
                 <p className={`text-xs mt-1 transition-colors duration-300 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  Special powers, technology, or plot twists you envision
+                  Include real-world applications or examples you want covered
                 </p>
               </div>
             </div>
@@ -2616,12 +2659,12 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                 <p className={`font-medium transition-colors duration-300 ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  Try Different Themes
+                  Try Different Topics
                 </p>
                 <p className={`text-xs mt-1 transition-colors duration-300 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  Experiment with various concepts for diverse results
+                  Explore various concepts across different subjects for comprehensive learning
                 </p>
               </div>
             </div>
@@ -2644,7 +2687,7 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
               <Wand2 className={`h-5 w-5 transition-colors duration-300 ${
                 theme === 'dark' ? 'text-indigo-400' : 'text-indigo-600'
               }`} />
-              Your Story Theme
+              Educational Topic
             </h3>
 
             {error && (
@@ -2665,9 +2708,9 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
             )}
 
             <textarea
-              value={storyTheme}
-              onChange={(e) => setStoryTheme(e.target.value)}
-              placeholder="Enter your story theme or concept... (e.g., 'A detective in a futuristic city investigates AI crimes')"
+              value={educationalTopic}
+              onChange={(e) => setEducationalTopic(e.target.value)}
+              placeholder="Enter an educational topic... (e.g., 'Refraction of Light', 'Photosynthesis', 'Water Cycle')"
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none transition-colors duration-300 ${
                 theme === 'dark'
                   ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
@@ -2678,24 +2721,54 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
 
             <button
               onClick={generatePlot}
-              disabled={!storyTheme.trim() || isGenerating}
+              disabled={!educationalTopic.trim() || isGenerating}
               className="w-full mt-4 flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGenerating ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  Generating Plot...
+                  {isGeneratingImage ? 'Generating Visualization...' : 'Generating Narrative...'}
                 </>
               ) : (
                 <>
                   <Wand2 className="h-4 w-4" />
-                  Generate Plot
+                  Generate Educational Narrative
                 </>
               )}
             </button>
           </div>
 
-          {/* Generated Plot with Markdown Rendering */}
+          {/* Generated Educational Visualization Image */}
+          {generatedImage && (
+            <div className={`rounded-xl border shadow-sm p-6 transition-colors duration-300 ${
+              theme === 'dark'
+                ? 'bg-gray-900 border-gray-800'
+                : 'bg-white border-gray-200'
+            }`}>
+              <div className="flex items-center gap-2 mb-4">
+                <ImageIcon className={`h-5 w-5 transition-colors duration-300 ${
+                  theme === 'dark' ? 'text-purple-400' : 'text-purple-600'
+                }`} />
+                <h3 className={`font-semibold transition-colors duration-300 ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>
+                  Educational Visualization
+                </h3>
+              </div>
+              <div className="rounded-lg overflow-hidden border ${
+                theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+              }">
+                <img 
+                  src={generatedImage} 
+                  alt="Educational visualization" 
+                  className="w-full h-auto"
+                  style={{ aspectRatio: '16/9' }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Generated Educational Narrative with Markdown Rendering */}
           {plotResult && (
             <div className={`rounded-xl border shadow-sm p-6 transition-colors duration-300 ${
               theme === 'dark'
@@ -2709,7 +2782,7 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
                 <h3 className={`font-semibold transition-colors duration-300 ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  Generated Plot
+                  Educational Narrative
                 </h3>
               </div>
               <div className={`prose prose-sm max-w-none transition-colors duration-300 ${
@@ -2771,7 +2844,7 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
               {exampleThemes.map((example, index) => (
                 <button
                   key={index}
-                  onClick={() => setStoryTheme(example.description)}
+                  onClick={() => setEducationalTopic(example.description)}
                   className={`w-full text-left p-4 rounded-lg transition-all border ${
                     theme === 'dark'
                       ? 'bg-gradient-to-br from-pink-950/50 to-purple-950/50 hover:from-pink-950/70 hover:to-purple-950/70 border-pink-900/50'

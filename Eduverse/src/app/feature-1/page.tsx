@@ -386,9 +386,9 @@ export default function Feature1Page() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <BookOpen className="w-6 h-6 text-purple-600" />
-              <h2 className="text-2xl font-bold text-gray-900">Plot Crafter: Creative Writing Assistant</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Plot Crafter: Educational Narratives</h2>
             </div>
-            <p className="text-gray-500 mb-10">Generate creative plots and stories for your projects</p>
+            <p className="text-gray-500 mb-10">Learn educational topics through engaging story narratives with AI-generated visualizations</p>
 
             <div className="grid md:grid-cols-2 gap-12 mb-12">
               {/* How It Works */}
@@ -397,19 +397,19 @@ export default function Feature1Page() {
                 <div className="space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="w-7 h-7 rounded-full bg-purple-50 text-purple-700 flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-0.5">1</div>
-                    <p className="text-gray-600 pt-1">Enter a theme or concept for your story or game</p>
+                    <p className="text-gray-600 pt-1">Enter an educational topic like "Refraction of Light" or "Photosynthesis"</p>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-7 h-7 rounded-full bg-purple-50 text-purple-700 flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-0.5">2</div>
-                    <p className="text-gray-600 pt-1">AI generates a detailed plot based on your input</p>
+                    <p className="text-gray-600 pt-1">AI generates a 16:9 educational visualization of the concept</p>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-7 h-7 rounded-full bg-purple-50 text-purple-700 flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-0.5">3</div>
-                    <p className="text-gray-600 pt-1">Get character ideas, story arcs, and narrative elements</p>
+                    <p className="text-gray-600 pt-1">Get an engaging story narrative that explains the topic</p>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-7 h-7 rounded-full bg-purple-50 text-purple-700 flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-0.5">4</div>
-                    <p className="text-gray-600 pt-1">Use the generated content for creative writing projects</p>
+                    <p className="text-gray-600 pt-1">Learn complex concepts through storytelling and visuals</p>
                   </div>
                 </div>
               </div>
@@ -420,19 +420,19 @@ export default function Feature1Page() {
                 <div className="space-y-2.5">
                   <div className="flex items-start gap-2.5">
                     <Pencil className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">Generate story prompts for writing assignments</span>
+                    <span className="text-gray-700">Understand physics, chemistry, and biology concepts</span>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <BookOpen className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">Create educational game scenarios</span>
+                    <span className="text-gray-700">Learn mathematics through story-based explanations</span>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <Info className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">Develop interactive learning narratives</span>
+                    <span className="text-gray-700">Visualize abstract concepts with AI-generated images</span>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <Sparkles className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">Craft historical or scientific scenarios</span>
+                    <span className="text-gray-700">Make learning engaging and memorable for students</span>
                   </div>
                 </div>
               </div>
