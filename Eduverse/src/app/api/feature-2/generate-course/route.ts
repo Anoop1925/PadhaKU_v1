@@ -200,65 +200,72 @@ async function searchYouTubeVideo(topic: string): Promise<string> {
   }
 }
 
-// Function to generate image using AI Guru Lab API
+// Function to generate image using Pixabay API
 async function generateCourseImage(courseName: string, category: string, level: string): Promise<string> {
   try {
-    const apiKey = process.env.AI_GURU_LAB_API;
+    const apiKey = process.env.PIXABAY_API_KEY;
     if (!apiKey) {
-      console.warn("AI_GURU_LAB_API key not found, skipping image generation");
+      console.warn("⚠️ PIXABAY_API_KEY not found, skipping image generation");
       return "";
     }
 
-    // Create a descriptive prompt based on course details
-    const imagePrompt = `Professional course banner for "${courseName}" in ${category} category, ${level} level. Modern, clean design with educational elements, suitable for online learning platform. High quality, professional appearance.`;
+    // Search for images based on category
+    const searchQuery = encodeURIComponent(category);
+    const pixabayUrl = `https://pixabay.com/api/?key=${apiKey}&q=${searchQuery}&image_type=photo&category=education&orientation=horizontal&per_page=3&safesearch=true`;
 
-    const response = await axios.post('https://aigurulab.tech/api/generate-image', {
-      width: 1024,
-      height: 1024,
-      input: imagePrompt,
-      model: 'sdxl',
-      aspectRatio: "1:1"
-    }, {
-      headers: {
-        'x-api-key': apiKey,
-        'Content-Type': 'application/json',
-      },
-    });
+    console.log(`🖼️ Searching Pixabay for: "${category}"`);
+    
+    const response = await axios.get(pixabayUrl);
 
-    if (response.data && response.data.image) {
-      return response.data.image;
+    if (response.data && response.data.hits && response.data.hits.length > 0) {
+      // Get the first high-quality image (largeImageURL for best quality)
+      const imageUrl = response.data.hits[0].largeImageURL || response.data.hits[0].webformatURL;
+      console.log(`✅ Found Pixabay image: ${imageUrl}`);
+      return imageUrl;
     } else {
-      console.warn("No image data received from AI Guru Lab API");
+      console.warn("⚠️ No images found on Pixabay for this category");
       return "";
     }
   } catch (error) {
-    console.error("Error generating course image:", error);
+    console.error("❌ Error fetching image from Pixabay:", error);
     return "";
   }
 }
 
 export async function POST(req: NextRequest) {
-  const {
-    name,
-    description,
-    category,
-    level,
-    includeVideo,
-    noOfChapters
-  } = await req.json();
-
-  console.log("📝 Course Generation Request:");
-  console.log("- Name:", name);
-  console.log("- Include Video:", includeVideo);
-  console.log("- YouTube API Key exists:", !!process.env.YOUTUBE_API_KEY);
-
   try {
+    const {
+      name,
+      description,
+      category,
+      level,
+      includeVideo,
+      noOfChapters
+    } = await req.json();
+
+    console.log("📝 Course Generation Request:");
+    console.log("- Name:", name);
+    console.log("- Include Video:", includeVideo);
+    console.log("- YouTube API Key exists:", !!process.env.YOUTUBE_API_KEY);
+
+    // Validate required fields
+    if (!name || !description || !category || !level || !noOfChapters) {
+      return NextResponse.json(
+        { error: 'Missing required fields: name, description, category, level, noOfChapters' },
+        { status: 400 }
+      );
+    }
     // Step 1: Try to find matching Code with Harry playlist
     let playlistData: PlaylistCourseData | null = null;
     
     if (includeVideo) {
       console.log("\n🎬 Step 1: Searching for matching playlist...");
-      playlistData = await findPlaylistCourse(name);
+      try {
+        playlistData = await findPlaylistCourse(name);
+      } catch (playlistError) {
+        console.warn("⚠️ Playlist search failed:", playlistError);
+        // Continue with AI-generated course
+      }
     }
 
     let courseData;
@@ -303,7 +310,7 @@ export async function POST(req: NextRequest) {
           description,
           category,
           level,
-          includeVideo,
+          includeVideo: includeVideo || false,
           noOfChapters,
           bannerImageUrl,
           bannerImagePrompt: `Course based on ${playlistData.playlistTitle}`,
@@ -431,7 +438,11 @@ Number of Chapters: ${noOfChapters}`;
 
     return NextResponse.json(courseData);
   } catch (error) {
-    console.error('Course Generation Error:', error);
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    console.error('❌ Course Generation Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return NextResponse.json(
+      { error: errorMessage, details: String(error) }, 
+      { status: 500 }
+    );
   }
 } 
