@@ -536,8 +536,9 @@ def analyze_image():
 @app.route('/api/plot-crafter/generate', methods=['POST'])
 def generate_plot():
     """
-    Generate story plot (EXACTLY like app.py)
+    Generate concise real-life example explanation (Updated approach)
     Uses gemini-2.5-flash-lite for better performance and higher limits
+    Explains concepts through short, interactive real-life examples (max 1 paragraph)
     """
     try:
         data = request.json
@@ -549,19 +550,23 @@ def generate_plot():
         # Configure Gemini with Plot Crafter API key
         genai.configure(api_key=PLOT_CRAFTER_API_KEY)
         
-        # Generate plot with Gemini 2.5 Flash Lite
+        # Generate concise explanation with Gemini 2.5 Flash Lite
         model = genai.GenerativeModel('gemini-2.5-flash-lite')
-        prompt = f"""Create a detailed plot based on the theme: {theme}
+        prompt = f"""Explain the concept "{theme}" using a SINGLE real-life example in simple, interactive language.
 
-Include:
-1. Story Title
-2. Main Characters (with brief descriptions)
-3. Setting
-4. Plot Summary
-5. Key Conflicts
-6. Resolution
+CRITICAL REQUIREMENTS:
+- Use ONLY ONE PARAGRAPH (maximum 4-5 sentences)
+- Explain with a relatable, everyday real-life scenario
+- Use simple, conversational language that anyone can understand
+- Make it interactive and engaging
+- DO NOT write a long story - just one clear, concise example
+- Focus on helping the user understand the concept quickly
 
-Make it creative and engaging!"""
+Example format: "Imagine you're [everyday scenario]. This is exactly how [concept] works because [simple explanation]."
+
+Topic: {theme}
+
+Provide your ONE PARAGRAPH real-life example explanation:"""
         
         response = model.generate_content([prompt])
         

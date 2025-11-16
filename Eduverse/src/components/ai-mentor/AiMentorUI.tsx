@@ -142,7 +142,7 @@ const AiMentorUI = ({ imageSrc }: AiMentorUIProps) => {
             </div>
             <button 
               onClick={() => window.location.reload()} 
-              className="mt-4 px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-semibold transition-colors shadow-sm"
+              className="mt-4 px-6 py-2 bg-[#387BFF] hover:bg-[#2563eb] text-white rounded-lg font-semibold transition-colors shadow-sm"
             >
               Reload Page
             </button>
@@ -159,9 +159,9 @@ const AiMentorUI = ({ imageSrc }: AiMentorUIProps) => {
         {/* Avatar and Status */}
         <div className="flex flex-col items-center">
           <div className={`relative w-32 h-32 mb-6 flex items-center justify-center`}>
-            <div className={`absolute inset-0 rounded-full ${isSpeaking ? 'border-4 border-purple-400 shadow-lg shadow-purple-200' : 'border-2 border-gray-200'} transition-all`}></div>
-            <div className={`absolute inset-0 rounded-full ${isSpeaking ? 'bg-purple-100 animate-pulse' : 'bg-gray-50'} transition-all`}></div>
-            <div className="relative z-10 w-28 h-28 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center shadow-md">
+            <div className={`absolute inset-0 rounded-full ${isSpeaking ? 'border-4 border-[#387BFF] shadow-lg shadow-blue-200' : 'border-2 border-gray-200'} transition-all`}></div>
+            <div className={`absolute inset-0 rounded-full ${isSpeaking ? 'bg-blue-100 animate-pulse' : 'bg-gray-50'} transition-all`}></div>
+            <div className="relative z-10 w-28 h-28 rounded-full bg-gradient-to-br from-[#387BFF] to-[#2563eb] flex items-center justify-center shadow-md">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className={`w-14 h-14 text-white`}
@@ -183,8 +183,8 @@ const AiMentorUI = ({ imageSrc }: AiMentorUIProps) => {
           </h2>
           <p className="text-sm text-gray-600 mb-6">
             {isSpeaking ? (
-              <span className="flex items-center gap-2 text-purple-600 font-medium">
-                <span className="w-2 h-2 bg-purple-500 rounded-full animate-ping"></span>
+              <span className="flex items-center gap-2 text-[#387BFF] font-medium">
+                <span className="w-2 h-2 bg-[#387BFF] rounded-full animate-ping"></span>
                 Listening and responding...
               </span>
             ) : (
@@ -197,7 +197,7 @@ const AiMentorUI = ({ imageSrc }: AiMentorUIProps) => {
             <button
               onClick={handleStartCall}
               disabled={isLoading}
-              className="px-8 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 disabled:bg-gray-400 text-white rounded-lg font-semibold text-base shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-300 disabled:cursor-not-allowed"
+              className="px-8 py-3 bg-gradient-to-r from-[#387BFF] to-[#2563eb] hover:from-[#2563eb] hover:to-[#1d4ed8] disabled:bg-gray-400 text-white rounded-lg font-semibold text-base shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:cursor-not-allowed"
             >
               <span className="inline-flex items-center gap-2">
                 {isLoading ? (

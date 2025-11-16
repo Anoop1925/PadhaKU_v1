@@ -23,11 +23,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     { label: "Quiz Generator", route: "/feature-3", icon: TestTube },
     { label: "Leaderboard", route: "/feature-5", icon: Trophy },
     { label: "AskSensei", route: "/ai-mentor", icon: MessageSquare },
-    { label: "CodeLab", route: "/feature-4", icon: Code },
   ];
 
   return (
-    <div className="min-h-screen bg-[#fafbfc] flex">
+    <div className="min-h-screen bg-[#fafbfc] flex" suppressHydrationWarning>
       {/* Fixed Sidebar */}
       <aside className="fixed left-0 top-0 h-screen w-[280px] bg-white border-r border-slate-200 hidden lg:flex flex-col shadow-sm z-50">
         {/* Logo Section */}
@@ -35,6 +34,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <button
             onClick={() => router.push('/')}
             className="flex items-center gap-3 group focus:outline-none"
+            suppressHydrationWarning
           >
             <div className="relative h-16 w-[237px]">
               <Image
@@ -68,6 +68,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       ? 'bg-[#387BFF] text-white shadow-md'
                       : 'text-slate-700 hover:bg-slate-100'
                   }`}
+                  suppressHydrationWarning
                 >
                   <Icon className={`w-5 h-5 ${isActive || item.isMagic && isActive ? '' : 'text-slate-500'}`} />
                   <span className="text-sm">{item.label}</span>
@@ -84,6 +85,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <button
                 onClick={() => setShowLogout(!showLogout)}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors focus:outline-none"
+                suppressHydrationWarning
               >
                 {session?.user?.image ? (
                   <div className="relative">

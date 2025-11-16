@@ -9,7 +9,7 @@ import Link from "next/link";
 type Tab = "about" | "myCourses";
 
 export default function Feature2Page() {
-  const [activeTab, setActiveTab] = useState<Tab>("about");
+  const [activeTab, setActiveTab] = useState<Tab>("myCourses");
   const [courses, setCourses] = useState<Course[]>([]);
   const [showModal, setShowModal] = useState(false);
 
@@ -88,17 +88,6 @@ export default function Feature2Page() {
         <div className="max-w-7xl mx-auto px-8">
           <div className="grid grid-cols-2 gap-0">
             <button
-              onClick={() => setActiveTab("about")}
-              className={`flex items-center justify-center gap-2 px-6 py-4 font-medium text-sm transition-all ${
-                activeTab === "about"
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              <Info className="w-4 h-4" />
-              About
-            </button>
-            <button
               onClick={() => setActiveTab("myCourses")}
               className={`flex items-center justify-center gap-2 px-6 py-4 font-medium text-sm transition-all ${
                 activeTab === "myCourses"
@@ -108,6 +97,17 @@ export default function Feature2Page() {
             >
               <GraduationCap className="w-4 h-4" />
               My Courses
+            </button>
+            <button
+              onClick={() => setActiveTab("about")}
+              className={`flex items-center justify-center gap-2 px-6 py-4 font-medium text-sm transition-all ${
+                activeTab === "about"
+                  ? "bg-gray-100 text-gray-900"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <Info className="w-4 h-4" />
+              About
             </button>
           </div>
         </div>

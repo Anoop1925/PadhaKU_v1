@@ -14,8 +14,8 @@ const AboutContent = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">How It Works</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex gap-4">
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-              <Mic className="w-5 h-5 text-purple-600" />
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+              <Mic className="w-5 h-5 text-[#387BFF]" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-900 mb-1">1. Start Voice Call</h3>
@@ -67,13 +67,13 @@ const AboutContent = () => {
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Key Features</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-lg border border-gray-200 hover:border-purple-300 hover:shadow-sm transition-all">
-            <div className="flex items-center gap-3 mb-2">
-              <Mic className="w-5 h-5 text-purple-500" />
+          <div className="p-4 rounded-lg border border-gray-200 hover:border-[#387BFF] hover:shadow-sm transition-all">
+            <div className="flex items-center gap-2 mb-2 text-sm font-medium text-gray-900">
+              <Mic className="w-5 h-5 text-[#387BFF]" />
               <h3 className="font-semibold text-gray-900">Voice-First Learning</h3>
             </div>
             <p className="text-sm text-gray-600">
-              Natural voice conversations powered by advanced AI technology
+              Natural voice conversations make learning feel effortless and engaging
             </p>
           </div>
 
@@ -113,8 +113,8 @@ const AboutContent = () => {
       <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Perfect For</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-5 rounded-lg bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
-            <div className="w-10 h-10 rounded-lg bg-purple-500 text-white flex items-center justify-center mb-3">
+          <div className="p-5 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
+            <div className="w-10 h-10 rounded-lg bg-[#387BFF] text-white flex items-center justify-center mb-3">
               <BookOpen className="w-5 h-5" />
             </div>
             <h4 className="font-semibold text-gray-900 mb-1">Homework Help</h4>
@@ -180,8 +180,8 @@ const AboutContent = () => {
   );
 };
 
-export default function AiMentorPage() {
-  const [activeTab, setActiveTab] = useState<"about" | "chat">("about");
+export default function AIMentorPage() {
+  const [activeTab, setActiveTab] = useState<"about" | "chat">("chat");
 
   return (
     <div className="min-h-screen bg-white">
@@ -211,17 +211,6 @@ export default function AiMentorPage() {
         <div className="max-w-7xl mx-auto px-8">
           <div className="grid grid-cols-2 gap-0">
             <button
-              onClick={() => setActiveTab("about")}
-              className={`flex items-center justify-center gap-2 px-6 py-4 font-medium text-sm transition-all ${
-                activeTab === "about"
-                  ? "bg-gray-100 text-gray-900"
-                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              <Info className="w-4 h-4" />
-              About
-            </button>
-            <button
               onClick={() => setActiveTab("chat")}
               className={`flex items-center justify-center gap-2 px-6 py-4 font-medium text-sm transition-all ${
                 activeTab === "chat"
@@ -231,6 +220,17 @@ export default function AiMentorPage() {
             >
               <Bot className="w-4 h-4" />
               Voice Chat
+            </button>
+            <button
+              onClick={() => setActiveTab("about")}
+              className={`flex items-center justify-center gap-2 px-6 py-4 font-medium text-sm transition-all ${
+                activeTab === "about"
+                  ? "bg-gray-100 text-gray-900"
+                  : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <Info className="w-4 h-4" />
+              About
             </button>
           </div>
         </div>
