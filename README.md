@@ -39,7 +39,7 @@ Traditional learning platforms follow a one-size-fits-all approach that fails to
 
 ### 1. Magic Learn - Three-in-One Learning Suite
 
-<img src="./Eduverse/public/Magic-learn_light.png" alt="Magic Learn" width="600"/>
+<img src="./Eduverse/public/Magic-learn-feature-page.png" alt="Magic Learn" width="600"/>
 
 #### DrawInAir - Gesture-Based Drawing & Math Solver
 - **Hand Tracking**: Real-time gesture recognition using MediaPipe with 21 landmark detection
@@ -126,7 +126,7 @@ Traditional learning platforms follow a one-size-fits-all approach that fails to
 
 #### Landing Page
 <div align="center">
-<img src="./Eduverse/public/Main-page.png" alt="Landing Page" width="800"/>
+<img src="./Eduverse/public/landing-page.png" alt="Landing Page" width="800"/>
 </div>
 
 *Modern, responsive landing page with frosted glass effects and smooth scroll navigation*
@@ -654,17 +654,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Need Help?
 
-- Email: support@padhaku.com
-- Discord: [Join our community](#)
-- Documentation: [docs.padhaku.com](#)
 - Issues: [GitHub Issues](https://github.com/Anoop1925/PadhaKU/issues)
 
 ### Stay Connected
 
 - Star us on [GitHub](https://github.com/Anoop1925/PadhaKU)
-- Follow on Twitter: [@PadhaKU](#)
-- LinkedIn: [PadhaKU](#)
-- YouTube: [PadhaKU Tutorials](#)
 
 ---
 
