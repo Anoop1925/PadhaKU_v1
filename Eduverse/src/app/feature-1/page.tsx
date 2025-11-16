@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Hand, Image as ImageIcon, BookOpen, Sparkles, Pencil, Camera, Info } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Hand, Image as ImageIcon, BookOpen, Sparkles, Pencil, Camera, Info, CheckCircle2, AlertCircle, X } from "lucide-react";
 
 type Tab = "drawInAir" | "imageReader" | "plotCrafter";
 
@@ -10,11 +10,27 @@ export default function Feature1Page() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Canva-style progress notification state
+  const [launchStatus, setLaunchStatus] = useState<'idle' | 'launching' | 'success' | 'error'>('idle');
+  const [launchMessage, setLaunchMessage] = useState('');
+  const [progress, setProgress] = useState(0);
+  
   const MAGIC_LEARN_URL = "/magic-learn"; // Updated to use Next.js route
 
   const handleLaunch = async () => {
     setLoading(true);
     setError(null);
+    setLaunchStatus('launching');
+    setLaunchMessage('Magic Learn server is being loaded right now...');
+    setProgress(0);
+    
+    // Simulate progress during server startup (reaches 90% in ~11 seconds)
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 90) return 90; // Cap at 90% until we get actual response
+        return prev + 0.75; // Increment by 0.75% every 100ms (90% in ~12 seconds)
+      });
+    }, 100);
     
     try {
       // First, check if backend is already running
@@ -33,22 +49,55 @@ export default function Feature1Page() {
         const startData = await startResponse.json();
         
         if (!startData.success) {
-          throw new Error(startData.message || 'Failed to start Magic Learn backend');
+          clearInterval(progressInterval);
+          setLaunchStatus('error');
+          setLaunchMessage('Failed to start Magic Learn server. Please try again.');
+          setLoading(false);
+          setProgress(0);
+          
+          // Auto-hide error after 10 seconds
+          setTimeout(() => {
+            setLaunchStatus('idle');
+          }, 10000);
+          return;
         }
         
         // Wait a bit more for the backend to be fully ready
         await new Promise(resolve => setTimeout(resolve, 1500));
       }
       
+      // Clear interval and complete progress
+      clearInterval(progressInterval);
+      setProgress(100);
+      
+      // Success - server is ready
+      setLaunchStatus('success');
+      setLaunchMessage('Server is loaded on another tab, you can check it now');
+      
       // Open Magic Learn page in new tab
       window.open(MAGIC_LEARN_URL, "_blank");
       
       setLoading(false);
       
+      // Auto-hide success message after 6 seconds
+      setTimeout(() => {
+        setLaunchStatus('idle');
+        setProgress(0);
+      }, 6000);
+      
     } catch (err: any) {
+      clearInterval(progressInterval);
       console.error('Error launching Magic Learn:', err);
       setError(err.message || 'Failed to launch Magic Learn. Please make sure Python and required packages are installed.');
+      setLaunchStatus('error');
+      setLaunchMessage('Failed to launch Magic Learn. Please check your setup.');
       setLoading(false);
+      setProgress(0);
+      
+      // Auto-hide error after 10 seconds
+      setTimeout(() => {
+        setLaunchStatus('idle');
+      }, 10000);
     }
   };
 
@@ -398,6 +447,93 @@ export default function Feature1Page() {
           </div>
         )}
       </div>
+      
+      {/* Canva-Style Animated Progress Notification - Floating at bottom-center */}
+      {launchStatus !== 'idle' && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className={`
+            min-w-[420px] max-w-2xl
+            rounded-xl shadow-2xl border
+            backdrop-blur-sm
+            ${launchStatus === 'launching' ? 'bg-white/95 border-gray-200 dark:bg-gray-900/95 dark:border-gray-700' : ''}
+            ${launchStatus === 'success' ? 'bg-white/95 border-gray-200 dark:bg-gray-900/95 dark:border-gray-700' : ''}
+            ${launchStatus === 'error' ? 'bg-red-50/95 border-red-200 dark:bg-red-900/95 dark:border-red-700' : ''}
+          `}>
+            <div className="flex items-center gap-4 p-5">
+              {/* Icon */}
+              <div className="flex-shrink-0">
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                  launchStatus === 'launching' ? 'bg-purple-100 dark:bg-white/10' : ''
+                } ${
+                  launchStatus === 'success' ? 'bg-green-100 dark:bg-white/10' : ''
+                } ${
+                  launchStatus === 'error' ? 'bg-red-100 dark:bg-red-800' : ''
+                }`}>
+                  {launchStatus === 'launching' && (
+                    <Sparkles className="w-7 h-7 text-purple-600 dark:text-white" />
+                  )}
+                  {launchStatus === 'success' && (
+                    <CheckCircle2 className="w-7 h-7 text-green-600 dark:text-green-400" />
+                  )}
+                  {launchStatus === 'error' && (
+                    <AlertCircle className="w-7 h-7 text-red-600 dark:text-red-300" />
+                  )}
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-semibold mb-2 ${
+                  launchStatus === 'launching' ? 'text-gray-900 dark:text-white' : ''
+                } ${
+                  launchStatus === 'success' ? 'text-gray-900 dark:text-white' : ''
+                } ${
+                  launchStatus === 'error' ? 'text-red-900 dark:text-red-100' : ''
+                }`}>
+                  Magic Learn Server
+                </div>
+                
+                {/* Canva-style progress bar in the middle */}
+                {(launchStatus === 'launching' || launchStatus === 'success') && (
+                  <div className="mb-2 h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 via-purple-500 to-pink-500 transition-all duration-300 ease-out rounded-full"
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                )}
+                
+                <div className={`text-xs ${
+                  launchStatus === 'launching' ? 'text-gray-600 dark:text-gray-300' : ''
+                } ${
+                  launchStatus === 'success' ? 'text-gray-600 dark:text-gray-300' : ''
+                } ${
+                  launchStatus === 'error' ? 'text-red-700 dark:text-red-300' : ''
+                }`}>
+                  {launchMessage}
+                </div>
+              </div>
+              
+              {/* Close Button */}
+              <button
+                onClick={() => {
+                  setLaunchStatus('idle');
+                  setProgress(0);
+                }}
+                className={`
+                  flex-shrink-0 rounded-lg p-1.5 transition-colors
+                  ${launchStatus === 'launching' ? 'hover:bg-gray-100 text-gray-500 hover:text-gray-700 dark:hover:bg-white/10 dark:text-gray-300 dark:hover:text-white' : ''}
+                  ${launchStatus === 'success' ? 'hover:bg-gray-100 text-gray-500 hover:text-gray-700 dark:hover:bg-white/10 dark:text-gray-300 dark:hover:text-white' : ''}
+                  ${launchStatus === 'error' ? 'hover:bg-red-100 dark:hover:bg-red-800 text-red-600 dark:text-red-400' : ''}
+                `}
+                aria-label="Close notification"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

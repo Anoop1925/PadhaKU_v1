@@ -118,23 +118,42 @@ export async function POST() {
     }
 
     console.log('Starting Magic Learn backend...');
+    console.log('Backend path:', backendPath);
+    console.log('Batch file path:', batFilePath);
     
-    // Start the backend process silently using pythonw (no console window)
-    // Use pythonw.exe instead of python.exe to avoid any console window
-    backendProcess = spawn('pythonw', [backendPath], {
+    // Use VBScript to run batch file completely hidden (no window at all)
+    // Create a temporary VBS file that runs the batch file invisibly
+    const vbsContent = `Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run """${batFilePath}""", 0, False
+Set WshShell = Nothing`;
+    
+    const vbsPath = path.join(path.dirname(batFilePath), 'run_silent.vbs');
+    fs.writeFileSync(vbsPath, vbsContent);
+    
+    // Execute the VBScript which will run the batch file hidden
+    backendProcess = spawn('wscript.exe', [vbsPath], {
       detached: true,
       stdio: 'ignore',
-      cwd: path.dirname(backendPath),
-      windowsHide: true,
-      shell: false
+      windowsHide: true
     });
 
     // Unref so the parent process can exit independently
     backendProcess.unref();
+    
+    // Clean up VBS file after a short delay
+    setTimeout(() => {
+      try {
+        if (fs.existsSync(vbsPath)) {
+          fs.unlinkSync(vbsPath);
+        }
+      } catch (err) {
+        console.error('Failed to clean up VBS file:', err);
+      }
+    }, 2000);
 
     // Wait for the server to start and verify it's running
     let attempts = 0;
-    const maxAttempts = 20; // 20 seconds max wait
+    const maxAttempts = 30; // 30 seconds max wait
     
     console.log('Waiting for Magic Learn backend to start on port 5000...');
     
@@ -153,9 +172,9 @@ export async function POST() {
           heartbeatInterval = setInterval(async () => {
             const timeSinceLastHeartbeat = Date.now() - lastHeartbeat;
             
-            // If no heartbeat for 15 seconds, assume tab is closed
-            if (timeSinceLastHeartbeat > 15000) {
-              console.log('No heartbeat detected for 15 seconds. Stopping backend...');
+            // If no heartbeat for 60 seconds, assume tab is closed (increased for uninterrupted drawing)
+            if (timeSinceLastHeartbeat > 60000) {
+              console.log('No heartbeat detected for 60 seconds. Stopping backend...');
               await killBackendProcess();
             }
           }, 5000);
@@ -175,7 +194,7 @@ export async function POST() {
 
     return NextResponse.json({ 
       success: false, 
-      message: 'Backend startup timeout. The server did not respond within 20 seconds.',
+      message: 'Backend startup timeout. The server did not respond within 30 seconds.',
       details: 'Please check if Python and required packages are installed.'
     }, { status: 500 });
 

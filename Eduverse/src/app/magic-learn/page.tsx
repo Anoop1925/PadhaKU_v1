@@ -16,39 +16,41 @@ export default function MagicLearnPage() {
     setTheme(prev => prev === 'light' ? 'dark' : 'light')
   }
 
-  // Heartbeat to keep backend alive
+  // Heartbeat to keep backend alive - FIXED to properly stop on unmount
   useEffect(() => {
-    // Send heartbeat every 5 seconds
-    const heartbeatInterval = setInterval(async () => {
+    let heartbeatInterval: NodeJS.Timeout | null = null;
+    let isActive = true; // Track if component is still mounted
+
+    // Only send heartbeat if component is active
+    const sendHeartbeat = async () => {
+      if (!isActive) return;
+      
       try {
         await fetch('/api/magic-learn/start', {
           method: 'PUT',
         });
-        console.log('Heartbeat sent');
+        console.log('Heartbeat sent at', new Date().toLocaleTimeString());
       } catch (error) {
         console.error('Heartbeat failed:', error);
       }
-    }, 5000);
-
-    // Cleanup function when component unmounts (tab closes)
-    const handleUnload = async () => {
-      // Stop sending heartbeats
-      clearInterval(heartbeatInterval);
-      
-      // Note: The backend will auto-stop after 15 seconds of no heartbeat
-      console.log('Magic Learn tab closing - backend will auto-stop');
     };
 
-    // Listen for page unload (tab close, navigation away, etc.)
-    window.addEventListener('beforeunload', handleUnload);
-    window.addEventListener('pagehide', handleUnload);
+    // Start heartbeat interval (every 5 seconds)
+    heartbeatInterval = setInterval(sendHeartbeat, 5000);
+    console.log('Magic Learn heartbeat started');
 
-    // Cleanup on component unmount
+    // Cleanup function - THIS ACTUALLY RUNS when component unmounts
     return () => {
-      clearInterval(heartbeatInterval);
-      window.removeEventListener('beforeunload', handleUnload);
-      window.removeEventListener('pagehide', handleUnload);
-      handleUnload();
+      console.log('Magic Learn component unmounting - stopping heartbeat');
+      isActive = false;
+      
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+      }
+      
+      // Backend will auto-stop after 60 seconds of no heartbeat
+      console.log('Heartbeat stopped. Backend will auto-stop in 60 seconds.');
     };
   }, []);
 
@@ -285,7 +287,7 @@ export default function MagicLearnPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
         {activeTab === 'about' && <AboutContent theme={theme} />}
         {activeTab === 'drawinair' && <DrawInAirTab theme={theme} />}
         {activeTab === 'imagereader' && <ImageReaderTab theme={theme} />}
@@ -314,12 +316,17 @@ function AboutContent({ theme }: { theme: 'light' | 'dark' }) {
             Welcome to Magic Learn
           </h2>
         </div>
-        <p className={`leading-relaxed transition-colors duration-300 ${
+        <p className={`leading-relaxed mb-4 transition-colors duration-300 ${
           theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
         }`}>
           Magic Learn combines cutting-edge AI with intuitive interfaces to create three powerful learning tools.
           Whether you're solving math problems through gestures, analyzing images, or crafting stories, Magic Learn
           makes learning interactive and fun.
+        </p>
+        <p className={`text-sm transition-colors duration-300 ${
+          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+        }`}>
+          Use the tabs above to explore each feature and start your interactive learning journey!
         </p>
       </div>
 
@@ -689,6 +696,22 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const startCamera = async () => {
     try {
       setError('')
+      setIsStreaming(false)
+      
+      // Check if backend is reachable with proper timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+      
+      const healthCheck = await fetch('http://localhost:5000/api/health', {
+        signal: controller.signal
+      }).catch(() => null)
+      
+      clearTimeout(timeoutId)
+      
+      if (!healthCheck || !healthCheck.ok) {
+        setError('Backend server is not running. Please wait a moment and try again, or restart Magic Learn.')
+        return
+      }
       
       // Start backend camera
       const response = await fetch('http://localhost:5000/api/drawinair/start', {
@@ -699,25 +722,34 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       
       if (data.success) {
         setIsStreaming(true)
+        setError('')
         // Video stream will load automatically via img src
       } else {
         setError(data.error || 'Failed to start camera')
       }
     } catch (err) {
       console.error('Error starting camera:', err)
-      setError('Failed to start camera. Make sure backend is running on port 5000.')
+      setError('Failed to connect to backend. Please wait for the server to start (can take up to 30 seconds).')
     }
   }
 
   const stopCamera = async () => {
     try {
-      await fetch('http://localhost:5000/api/drawinair/stop', {
+      const response = await fetch('http://localhost:5000/api/drawinair/stop', {
         method: 'POST'
       })
-      setIsStreaming(false)
-      setCurrentGesture('None')
+      
+      if (response.ok) {
+        console.log('Camera stopped successfully')
+      }
     } catch (err) {
       console.error('Error stopping camera:', err)
+    } finally {
+      // Always update UI state even if backend call fails
+      setIsStreaming(false)
+      setCurrentGesture('None')
+      setAnalysisResult('')
+      setError('')
     }
   }
 

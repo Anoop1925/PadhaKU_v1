@@ -19,6 +19,9 @@ from mediapipe.python.solutions import hands, drawing_utils
 from dotenv import load_dotenv
 import threading
 import time
+import math
+import signal
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -44,27 +47,43 @@ analysis_result = ""
 current_gesture = "None"
 p1, p2 = 0, 0  # Drawing position tracker
 
+# SMART GESTURE LOCKING: Once you start drawing, stay in drawing mode
+gesture_lock_mode = None  # Locks to Drawing/Moving/Erasing to prevent interruption
+gesture_lock_counter = 0  # How many frames we've been in locked mode
+LOCK_THRESHOLD = 3  # Frames needed to lock into a gesture
+UNLOCK_THRESHOLD = 3  # Frames needed to unlock (REDUCED from 10 for instant response)
+INTENTIONAL_SWITCH_THRESHOLD = 2  # Quick switch for intentional gesture changes
+
 def initialize_camera():
-    """Initialize camera and MediaPipe hands (EXACTLY like app.py)"""
+    """Initialize camera and MediaPipe hands with OPTIMIZED settings for smooth tracking"""
     global camera, imgCanvas, mphands
     
     camera = cv2.VideoCapture(0)
     if not camera.isOpened():
         return False
     
+    # Optimize camera settings for better performance
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, 950)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 550)
     camera.set(cv2.CAP_PROP_BRIGHTNESS, 130)
+    camera.set(cv2.CAP_PROP_FPS, 30)  # Set to 30 FPS for smooth tracking
     
     imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
-    # Support both left and right hands - no discrimination! 🤝
-    mphands = hands.Hands(max_num_hands=2, min_detection_confidence=0.75)
+    
+    # OPTIMIZED MediaPipe settings for SMOOTH tracking
+    mphands = hands.Hands(
+        static_image_mode=False,  # Video mode for better tracking
+        max_num_hands=1,  # Focus on one hand for better performance
+        min_detection_confidence=0.7,  # Balanced detection
+        min_tracking_confidence=0.65,  # Smoother tracking (was 0.75, lowered for less jitter)
+        model_complexity=0  # Use lighter model for faster processing
+    )
     
     return True
 
 def process_frame_with_hands():
     """
-    Process frame with hand tracking (EXACTLY like app.py)
+    Process frame with hand tracking (OPTIMIZED for smooth left/right hand support)
     Returns the processed frame with drawing overlay
     """
     global camera, imgCanvas, mphands, current_gesture, p1, p2
@@ -76,23 +95,22 @@ def process_frame_with_hands():
     if not success or img is None:
         return None
     
-    # Resize and flip (EXACTLY like app.py)
+    # Resize and flip for mirror effect
     img = cv2.resize(src=img, dsize=(950, 550))
     img = cv2.flip(src=img, flipCode=1)
     imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     
-    # Process hands with MediaPipe (Support both left and right hands)
+    # Process hands with MediaPipe - configured for better tracking
     result = mphands.process(image=imgRGB)
     landmark_list = []
-    hand_label = None  # Track if it's Left or Right hand
+    hand_label = None  # Will be "Left" or "Right"
     
-    if result.multi_hand_landmarks:
-        # Get hand label (Left or Right)
-        if result.multi_handedness:
-            hand_label = result.multi_handedness[0].classification[0].label
-        
-        for hand_lms in result.multi_hand_landmarks:
-            # Draw hand landmarks on the BGR image (not RGB)
+    if result.multi_hand_landmarks and result.multi_handedness:
+        for idx, hand_lms in enumerate(result.multi_hand_landmarks):
+            # Get hand label (Left/Right) from MediaPipe
+            hand_label = result.multi_handedness[idx].classification[0].label
+            
+            # Draw hand landmarks smoothly
             drawing_utils.draw_landmarks(
                 image=img,
                 landmark_list=hand_lms,
@@ -102,86 +120,218 @@ def process_frame_with_hands():
             # Get landmark coordinates
             for id, lm in enumerate(hand_lms.landmark):
                 h, w, c = img.shape
-                x, y = lm.x, lm.y
-                cx, cy = int(x * w), int(y * h)
+                cx, cy = int(lm.x * w), int(lm.y * h)
                 landmark_list.append([id, cx, cy])
     
-    # Identify fingers (Works for both left and right hands)
+    # UNIVERSAL FINGER DETECTION: Works perfectly for BOTH left and right hands
     fingers = []
-    if landmark_list:
-        # Thumb detection - different for left vs right hand
-        if hand_label == "Right":
-            # For right hand: thumb is on left side, check if tip is LEFT of base
-            if landmark_list[4][1] < landmark_list[3][1]:
-                fingers.append(1)
-            else:
-                fingers.append(0)
-        else:  # Left hand
-            # For left hand: thumb is on right side, check if tip is RIGHT of base
-            if landmark_list[4][1] > landmark_list[3][1]:
+    if landmark_list and hand_label:
+        # SMART THUMB DETECTION: Independent logic for left vs right hand
+        thumb_tip_x = landmark_list[4][1]
+        thumb_ip_x = landmark_list[3][1]   # Thumb IP joint
+        thumb_mcp_x = landmark_list[2][1]  # Thumb base
+        wrist_x = landmark_list[0][1]
+        
+        # For MIRRORED camera view (flipCode=1), MediaPipe labels are OPPOSITE
+        # When you show your RIGHT hand, MediaPipe sees "Left" (because of mirror)
+        # So we need to INVERT the label
+        actual_hand = "Right" if hand_label == "Left" else "Left"
+        
+        # INDEPENDENT THUMB LOGIC for each hand
+        if actual_hand == "Right":
+            # Right hand: Thumb extends to the RIGHT (positive X direction)
+            # Thumb is UP if tip is farther RIGHT than base
+            thumb_extended = thumb_tip_x > thumb_mcp_x + abs(thumb_mcp_x - wrist_x) * 0.15
+        else:
+            # Left hand: Thumb extends to the LEFT (negative X direction)  
+            # Thumb is UP if tip is farther LEFT than base
+            thumb_extended = thumb_tip_x < thumb_mcp_x - abs(thumb_mcp_x - wrist_x) * 0.15
+        
+        fingers.append(1 if thumb_extended else 0)
+        
+        # ADAPTIVE FINGER DETECTION: Uses proportional measurements
+        # Calculate hand size for scale-independent detection
+        wrist_y = landmark_list[0][2]
+        middle_base_y = landmark_list[9][2]
+        hand_size = abs(wrist_y - middle_base_y)
+        
+        # If hand is too close or detection failed, use fallback
+        if hand_size < 50:
+            hand_size = 100  # Reasonable default
+        
+        # Index, Middle, Ring, Pinky
+        finger_landmarks = [
+            [8, 6],    # Index: tip, pip (middle joint)
+            [12, 10],  # Middle: tip, pip
+            [16, 14],  # Ring: tip, pip
+            [20, 18]   # Pinky: tip, pip
+        ]
+        
+        for tip_id, pip_id in finger_landmarks:
+            tip_y = landmark_list[tip_id][2]
+            pip_y = landmark_list[pip_id][2]
+            
+            # Finger is "up" if tip is above pip by at least 15% of hand size
+            # This adapts to different hand sizes and camera distances
+            clearance_needed = hand_size * 0.15  # 15% of hand height
+            
+            if (pip_y - tip_y) > clearance_needed:
                 fingers.append(1)
             else:
                 fingers.append(0)
         
-        # Other fingers - same logic for both hands (check if tip is above base)
-        for id in [8, 12, 16, 20]:
-            if landmark_list[id][2] < landmark_list[id - 2][2]:
-                fingers.append(1)
-            else:
-                fingers.append(0)
-        
-        # Draw finger tips
+        # Visual feedback
         for i in range(0, 5):
             if fingers[i] == 1:
                 cx, cy = landmark_list[(i + 1) * 4][1], landmark_list[(i + 1) * 4][2]
-                cv2.circle(img=img, center=(cx, cy), radius=5, color=(255, 0, 255), thickness=1)
+                cv2.circle(img=img, center=(cx, cy), radius=7, color=(0, 255, 0), thickness=-1)
+                cv2.circle(img=img, center=(cx, cy), radius=8, color=(255, 255, 255), thickness=2)
     
-    # Handle drawing gestures (EXACTLY like app.py)
+    # INTELLIGENT GESTURE DETECTION with MODE LOCKING
+    # Once you start drawing, stay locked in drawing mode unless you clearly change gesture
+    global gesture_lock_mode, gesture_lock_counter
+    
+    detected_gesture = "None"
+    
     if len(fingers) == 5:
-        # Thumb + Index = Draw
-        if sum(fingers) == 2 and fingers[0] == fingers[1] == 1:
-            current_gesture = "Drawing"
-            cx, cy = landmark_list[8][1], landmark_list[8][2]
-            
-            if p1 == 0 and p2 == 0:
-                p1, p2 = cx, cy
-            cv2.line(img=imgCanvas, pt1=(p1, p2), pt2=(cx, cy), color=(255, 0, 255), thickness=5)
-            p1, p2 = cx, cy
-        
-        # Thumb + Index + Middle = Move (don't draw)
-        elif sum(fingers) == 3 and fingers[0] == fingers[1] == fingers[2] == 1:
-            current_gesture = "Moving"
-            p1, p2 = 0, 0
-        
-        # Thumb + Middle = Erase
-        elif sum(fingers) == 2 and fingers[0] == fingers[2] == 1:
-            current_gesture = "Erasing"
-            cx, cy = landmark_list[12][1], landmark_list[12][2]
-            
-            if p1 == 0 and p2 == 0:
-                p1, p2 = cx, cy
-            cv2.line(img=imgCanvas, pt1=(p1, p2), pt2=(cx, cy), color=(0, 0, 0), thickness=15)
-            p1, p2 = cx, cy
-        
-        # Thumb + Pinky = Clear
-        elif sum(fingers) == 2 and fingers[0] == fingers[4] == 1:
-            current_gesture = "Clearing"
-            imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
-            p1, p2 = 0, 0
-        
-        # Index + Middle = Analyze
-        elif sum(fingers) == 2 and fingers[1] == fingers[2] == 1:
-            current_gesture = "Analyzing"
-            p1, p2 = 0, 0
-        
+        # Detect what gesture the raw finger data suggests
+        if sum(fingers) == 2 and fingers[0] == 1 and fingers[1] == 1:
+            detected_gesture = "Drawing"
+        elif sum(fingers) == 3 and fingers[0] == 1 and fingers[1] == 1 and fingers[2] == 1:
+            detected_gesture = "Moving"
+        elif sum(fingers) == 2 and fingers[0] == 1 and fingers[2] == 1:
+            detected_gesture = "Erasing"
+        elif sum(fingers) == 2 and fingers[0] == 1 and fingers[4] == 1:
+            detected_gesture = "Clearing"
+        elif sum(fingers) == 2 and fingers[0] == 0 and fingers[1] == 1 and fingers[2] == 1:
+            detected_gesture = "Analyzing"
+    
+    # SMART MODE LOCKING LOGIC with INSTANT intentional switching
+    if gesture_lock_mode is None:
+        # Not locked yet - need consistent gesture to lock
+        if detected_gesture in ["Drawing", "Moving", "Erasing"]:
+            gesture_lock_counter += 1
+            if gesture_lock_counter >= LOCK_THRESHOLD:
+                gesture_lock_mode = detected_gesture
+                current_gesture = detected_gesture
+            else:
+                current_gesture = detected_gesture  # Use detected gesture while building lock
         else:
-            current_gesture = "None"
-            p1, p2 = 0, 0
+            gesture_lock_counter = 0
+            current_gesture = detected_gesture
     else:
-        current_gesture = "None"
+        # Already locked to a mode
+        if detected_gesture == gesture_lock_mode:
+            # Still doing the same gesture - stay locked
+            gesture_lock_counter = 0  # Reset unlock counter
+            current_gesture = gesture_lock_mode
+        
+        elif detected_gesture in ["Drawing", "Moving", "Erasing"] and detected_gesture != gesture_lock_mode:
+            # User is trying to switch to a different primary gesture
+            # CRITICAL: Distinguish between accidental flicker vs intentional change
+            
+            # Check if this is a "clear" gesture change (e.g., Drawing → Moving)
+            # Drawing has 2 fingers (thumb+index)
+            # Moving has 3 fingers (thumb+index+middle)
+            # This is CLEARLY intentional, not accidental
+            
+            is_clear_intentional_switch = False
+            
+            # Drawing (2 fingers) → Moving (3 fingers) = INTENTIONAL
+            if gesture_lock_mode == "Drawing" and detected_gesture == "Moving":
+                is_clear_intentional_switch = True
+            
+            # Moving (3 fingers) → Drawing (2 fingers) = INTENTIONAL  
+            elif gesture_lock_mode == "Moving" and detected_gesture == "Drawing":
+                is_clear_intentional_switch = True
+            
+            # Drawing (2) → Erasing (2 different) = INTENTIONAL
+            elif gesture_lock_mode == "Drawing" and detected_gesture == "Erasing":
+                is_clear_intentional_switch = True
+            
+            # Any other switch between these modes
+            elif gesture_lock_mode in ["Moving", "Erasing"]:
+                is_clear_intentional_switch = True
+            
+            if is_clear_intentional_switch:
+                # INSTANT SWITCH for clear intentional changes (just 2 frames confirmation)
+                gesture_lock_counter += 1
+                if gesture_lock_counter >= INTENTIONAL_SWITCH_THRESHOLD:
+                    gesture_lock_mode = detected_gesture
+                    gesture_lock_counter = 0
+                    current_gesture = detected_gesture
+                else:
+                    # Show new gesture immediately even before lock confirms
+                    current_gesture = detected_gesture
+            else:
+                # Unclear change - use normal unlock threshold
+                gesture_lock_counter += 1
+                if gesture_lock_counter >= UNLOCK_THRESHOLD:
+                    gesture_lock_mode = detected_gesture
+                    gesture_lock_counter = 0
+                    current_gesture = detected_gesture
+                else:
+                    current_gesture = gesture_lock_mode
+        
+        elif detected_gesture in ["Clearing", "Analyzing"]:
+            # Special gestures override lock immediately
+            gesture_lock_mode = None
+            gesture_lock_counter = 0
+            current_gesture = detected_gesture
+        
+        elif detected_gesture == "None":
+            # Hand not detected or resting - unlock after a delay
+            gesture_lock_counter += 1
+            if gesture_lock_counter >= UNLOCK_THRESHOLD:
+                gesture_lock_mode = None
+                gesture_lock_counter = 0
+                current_gesture = "None"
+            else:
+                # Stay in locked mode briefly
+                current_gesture = gesture_lock_mode
+        else:
+            # Unknown state - keep current lock
+            current_gesture = gesture_lock_mode
+    
+    # EXECUTE CONFIRMED GESTURES
+    if current_gesture == "Drawing" and len(fingers) == 5:
+        cx, cy = landmark_list[8][1], landmark_list[8][2]
+        
+        if p1 == 0 and p2 == 0:
+            p1, p2 = cx, cy
+        else:
+            cv2.line(img=imgCanvas, pt1=(p1, p2), pt2=(cx, cy), color=(255, 0, 255), thickness=6)
+        p1, p2 = cx, cy
+    
+    elif current_gesture == "Moving" and len(fingers) == 5:
+        cx, cy = landmark_list[8][1], landmark_list[8][2]
+        cv2.circle(img=img, center=(cx, cy), radius=10, color=(0, 255, 0), thickness=2)
         p1, p2 = 0, 0
     
-    # Blend canvas with video feed (EXACTLY like app.py)
+    elif current_gesture == "Erasing" and len(fingers) == 5:
+        cx, cy = landmark_list[12][1], landmark_list[12][2]
+        
+        if p1 == 0 and p2 == 0:
+            p1, p2 = cx, cy
+        else:
+            cv2.line(img=imgCanvas, pt1=(p1, p2), pt2=(cx, cy), color=(0, 0, 0), thickness=20)
+        p1, p2 = cx, cy
+    
+    elif current_gesture == "Clearing":
+        imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
+        gesture_lock_mode = None  # Unlock after clearing
+        gesture_lock_counter = 0
+        p1, p2 = 0, 0
+    
+    elif current_gesture == "Analyzing":
+        gesture_lock_mode = None  # Unlock after analyzing
+        gesture_lock_counter = 0
+        p1, p2 = 0, 0
+    
+    else:
+        p1, p2 = 0, 0
+    
+    # Blend canvas with video feed smoothly
     blended = cv2.addWeighted(src1=img, alpha=0.7, src2=imgCanvas, beta=1, gamma=0)
     imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
     _, imgInv = cv2.threshold(src=imgGray, thresh=50, maxval=255, type=cv2.THRESH_BINARY_INV)
@@ -197,6 +347,11 @@ def generate_frames():
     
     while True:
         try:
+            # Check if camera is still active
+            if camera is None:
+                print("Camera is None, stopping frame generation")
+                break
+                
             with camera_lock:
                 frame = process_frame_with_hands()
                 
@@ -210,10 +365,16 @@ def generate_frames():
                         
                         yield (b'--frame\r\n'
                                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                else:
+                    # If frame processing fails, wait a bit before retrying
+                    time.sleep(0.1)
             
             time.sleep(0.033)  # ~30 FPS
         except Exception as e:
             print(f"Error in generate_frames: {e}")
+            # If camera is stopped or error occurs, exit gracefully
+            if camera is None:
+                break
             time.sleep(0.1)
 
 @app.route('/api/drawinair/start', methods=['POST'])
@@ -229,17 +390,32 @@ def start_drawinair():
 
 @app.route('/api/drawinair/stop', methods=['POST'])
 def stop_drawinair():
-    """Stop DrawInAir camera"""
-    global camera, imgCanvas
+    """Stop DrawInAir camera and reset ALL global state"""
+    global camera, imgCanvas, current_gesture, p1, p2, gesture_lock_mode, gesture_lock_counter, mphands
     
     try:
-        if camera is not None:
-            camera.release()
-            camera = None
+        with camera_lock:
+            if camera is not None:
+                camera.release()
+                camera = None
+            
+            # Close MediaPipe hands
+            if mphands is not None:
+                mphands.close()
+                mphands = None
+            
+            # Reset ALL state variables
+            imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
+            current_gesture = "None"
+            p1, p2 = 0, 0
+            gesture_lock_mode = None
+            gesture_lock_counter = 0
         
-        imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
+        # Give camera time to fully release
+        import time
+        time.sleep(0.2)  # Increased to 200ms for reliable cleanup
         
-        return jsonify({'success': True, 'message': 'Camera stopped'})
+        return jsonify({'success': True, 'message': 'Camera stopped and all resources released'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -409,6 +585,31 @@ def health_check():
         'features': ['DrawInAir', 'Image Reader', 'Plot Crafter']
     })
 
+# ==================== CLEANUP HANDLER ====================
+
+def cleanup_resources():
+    """Clean up camera and MediaPipe resources on shutdown"""
+    global camera, mphands
+    print("\\n🧹 Cleaning up resources...")
+    try:
+        if camera is not None:
+            camera.release()
+        if mphands is not None:
+            mphands.close()
+        print("✅ Resources cleaned up successfully")
+    except Exception as e:
+        print(f"⚠️ Error during cleanup: {e}")
+
+def signal_handler(sig, frame):
+    """Handle shutdown signals gracefully"""
+    print("\\n🛑 Shutdown signal received. Cleaning up...")
+    cleanup_resources()
+    sys.exit(0)
+
+# Register signal handlers
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
 if __name__ == '__main__':
     print("=" * 70)
     print("🚀 Magic Learn Backend API - Complete Implementation")
@@ -434,4 +635,5 @@ if __name__ == '__main__':
     print("   - GET  /health                     - Health check")
     print("=" * 70)
     
-    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
+    # Run WITHOUT debug mode to prevent process duplication and auto-restart issues
+    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True, use_reloader=False)

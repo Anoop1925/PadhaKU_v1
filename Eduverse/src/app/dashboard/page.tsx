@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [weeklyRank, setWeeklyRank] = useState<number | null>(null);
   const [coursesCompleted, setCoursesCompleted] = useState(0);
   const [chaptersCompleted, setChaptersCompleted] = useState(0);
+  const [profileDataLoading, setProfileDataLoading] = useState(true);
 
   useEffect(() => {
     if (session === null) {
@@ -47,55 +48,72 @@ export default function Dashboard() {
     }
   }, [session, router]);
 
-  // Fetch user points and statistics
+  // Fetch user points and statistics from Supabase
   useEffect(() => {
     if (!session?.user?.email) return;
 
-    // Fetch user points data
-    fetch(`/api/feature-5/points?userEmail=${encodeURIComponent(session.user.email)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        console.log('User points data:', data);
-        setTotalPoints(data.points || 0);
-        setCoursesCompleted(data.totalCoursesCompleted || 0);
-        setChaptersCompleted(data.totalChaptersCompleted || 0);
-      })
-      .catch((error) => console.error("Error fetching points:", error));
-
-    // Fetch leaderboard to get weekly rank
-    fetch('/api/feature-5/leaderboard')
-      .then((res) => res.json())
-      .then((data) => {
-        console.log('Leaderboard data:', data);
-        // Try to find user by name first (more reliable)
-        if (session?.user?.name) {
-          const userName = session.user.name.toLowerCase();
-          const userFirstName = session.user.name.split(' ')[0].toLowerCase();
+    const fetchProfileData = async () => {
+      try {
+        setProfileDataLoading(true);
+        
+        // Fetch leaderboard data which includes everything we need
+        const leaderboardResponse = await fetch('/api/feature-5/leaderboard');
+        const leaderboardData = await leaderboardResponse.json();
+        
+        console.log('Leaderboard data:', leaderboardData);
+        
+        // Find current user in leaderboard by email OR name
+        let userEntry = null;
+        let userRankIndex = -1;
+        
+        if (leaderboardData.leaderboard && leaderboardData.leaderboard.length > 0) {
+          // First try to find by email
+          userRankIndex = leaderboardData.leaderboard.findIndex((entry: any) => 
+            entry.userEmail.toLowerCase() === session?.user?.email?.toLowerCase()
+          );
           
-          const userRank = data.leaderboard?.findIndex((entry: any) => {
-            const entryName = entry.displayName.toLowerCase();
-            const entryFirstName = entry.displayName.split(' ')[0].toLowerCase();
-            return entryName.includes(userFirstName) || 
-                   userName.includes(entryFirstName) ||
-                   userFirstName === entryFirstName;
-          });
+          // If not found by email, try by name matching
+          if (userRankIndex === -1 && session?.user?.name) {
+            const userName = session.user.name.toLowerCase();
+            const userFirstName = session.user.name.split(' ')[0].toLowerCase();
+            
+            userRankIndex = leaderboardData.leaderboard.findIndex((entry: any) => {
+              const entryName = entry.displayName.toLowerCase();
+              const entryFirstName = entry.displayName.split(' ')[0].toLowerCase();
+              return entryName.includes(userFirstName) || 
+                     userName.includes(entryFirstName) ||
+                     userFirstName === entryFirstName;
+            });
+          }
           
-          if (userRank !== -1 && userRank !== undefined) {
-            console.log('User rank found:', userRank + 1);
-            setWeeklyRank(userRank + 1);
-            // Also update points from leaderboard if not fetched above
-            const userEntry = data.leaderboard[userRank];
-            if (userEntry) {
-              setTotalPoints(userEntry.points || 0);
-              setCoursesCompleted(userEntry.totalCoursesCompleted || 0);
-              setChaptersCompleted(userEntry.totalChaptersCompleted || 0);
-            }
-          } else {
-            console.log('User not found in leaderboard');
+          if (userRankIndex !== -1) {
+            userEntry = leaderboardData.leaderboard[userRankIndex];
+            console.log('User entry found:', userEntry);
           }
         }
-      })
-      .catch((error) => console.error("Error fetching rank:", error));
+        
+        // Set the profile data
+        if (userEntry) {
+          setTotalPoints(userEntry.points || 0);
+          setCoursesCompleted(userEntry.totalCoursesCompleted || 0);
+          setChaptersCompleted(userEntry.totalChaptersCompleted || 0);
+          setWeeklyRank(userEntry.rank || null);
+        } else {
+          // User not in leaderboard yet, set defaults
+          console.log('User not found in leaderboard, setting defaults');
+          setTotalPoints(0);
+          setCoursesCompleted(0);
+          setChaptersCompleted(0);
+          setWeeklyRank(null);
+        }
+      } catch (error) {
+        console.error("Error fetching profile data:", error);
+      } finally {
+        setProfileDataLoading(false);
+      }
+    };
+
+    fetchProfileData();
   }, [session]);
 
   useEffect(() => {
@@ -477,7 +495,9 @@ export default function Dashboard() {
                         </div>
                         <span className="text-sm font-semibold text-slate-700">Total Points</span>
                       </div>
-                      <span className="text-lg font-bold text-emerald-600">{totalPoints.toLocaleString()}</span>
+                      <span className="text-lg font-bold text-emerald-600">
+                        {profileDataLoading ? '...' : totalPoints.toLocaleString()}
+                      </span>
                     </div>
 
                     {/* Weekly Rank */}
@@ -489,7 +509,7 @@ export default function Dashboard() {
                         <span className="text-sm font-semibold text-slate-700">Weekly Rank</span>
                       </div>
                       <span className="text-lg font-bold text-purple-600">
-                        {weeklyRank ? `#${weeklyRank}` : '-'}
+                        {profileDataLoading ? '...' : (weeklyRank ? `#${weeklyRank}` : '-')}
                       </span>
                     </div>
 
@@ -499,7 +519,7 @@ export default function Dashboard() {
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-md">
                           <CheckCircle2 className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-sm font-semibold text-slate-700">Assignments</span>
+                        <span className="text-sm font-semibold text-slate-700">Assignments Completed</span>
                       </div>
                       <span className="text-lg font-bold text-orange-600">{assignmentsCompleted}</span>
                     </div>
@@ -512,7 +532,9 @@ export default function Dashboard() {
                         </div>
                         <span className="text-sm font-semibold text-slate-700">Chapters Done</span>
                       </div>
-                      <span className="text-lg font-bold text-cyan-600">{chaptersCompleted}</span>
+                      <span className="text-lg font-bold text-cyan-600">
+                        {profileDataLoading ? '...' : chaptersCompleted}
+                      </span>
                     </div>
 
                     {/* Courses Completed */}
@@ -523,7 +545,9 @@ export default function Dashboard() {
                         </div>
                         <span className="text-sm font-semibold text-slate-700">Courses Completed</span>
                       </div>
-                      <span className="text-lg font-bold text-pink-600">{coursesCompleted}</span>
+                      <span className="text-lg font-bold text-pink-600">
+                        {profileDataLoading ? '...' : coursesCompleted}
+                      </span>
                     </div>
                   </div>
                 </div>
