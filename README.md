@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./Eduverse/public/Main-logo22.png" alt="PadhaKU Logo" width="400"/>
+<img src="./Eduverse/public/Main-logo2 .png" alt="PadhaKU Logo" width="400"/>
 
 # PadhaKU - Knowledge Unlimited
 
