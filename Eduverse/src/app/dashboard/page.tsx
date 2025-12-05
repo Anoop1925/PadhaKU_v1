@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [coursesCompleted, setCoursesCompleted] = useState(0);
   const [chaptersCompleted, setChaptersCompleted] = useState(0);
   const [profileDataLoading, setProfileDataLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     if (session === null) {
@@ -447,7 +448,7 @@ export default function Dashboard() {
                 <div className="flex flex-col items-center">
                   {/* Circular Avatar - medium size */}
                   <div className="w-22 h-22 rounded-full border-3 border-blue-200 overflow-hidden bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-md mb-3">
-                    {session?.user?.image ? (
+                    {session?.user?.image && !imageError ? (
                       <Image 
                         src={session.user.image} 
                         alt="Profile" 
@@ -455,18 +456,7 @@ export default function Dashboard() {
                         height={88}
                         className="w-full h-full object-cover"
                         unoptimized={true}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const parent = target.parentElement;
-                          if (parent) {
-                            parent.innerHTML = `
-                              <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-500 to-orange-600 text-white font-bold text-3xl">
-                                ${session?.user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                              </div>
-                            `;
-                          }
-                        }}
+                        onError={() => setImageError(true)}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-white font-bold text-3xl">

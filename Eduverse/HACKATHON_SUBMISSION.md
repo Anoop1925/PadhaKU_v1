@@ -1,12 +1,10 @@
-# PadhaKU - Hackathon Submission Documentation
+# PadhaKU - Hackathon Submission
 
 ## Project Information
 
 **Project Name**: PadhaKU (Knowledge Unlimited)
 
-**Tagline**: AI-Powered Adaptive Learning Platform for Computer Science Education
-
-**Team Name**: PadhaKU Development Team
+**Tagline**: AI-Powered Adaptive Learning Platform for All Students
 
 **Repository**: [https://github.com/Anoop1925/Eduverse](https://github.com/Anoop1925/Eduverse)
 
@@ -14,814 +12,251 @@
 
 ---
 
-## Executive Summary
-
-PadhaKU is a next-generation educational technology platform that leverages artificial intelligence, computer vision, and gesture recognition to revolutionize computer science education. Built with modern web technologies and powered by Google's Gemini AI, PadhaKU addresses critical gaps in traditional online learning by providing personalized course generation, hands-free gesture-based interaction, and 24/7 AI mentorship. The platform is specifically designed to be accessible to specially-abled students while maintaining engagement for all learners through gamification and interactive features.
-
----
-
-## Table of Contents
-
-1. [Inspiration](#inspiration)
-2. [What It Does](#what-it-does)
-3. [Target Audience](#target-audience)
-4. [How We Built It](#how-we-built-it)
-5. [Challenges We Faced](#challenges-we-faced)
-6. [What We Learned](#what-we-learned)
-7. [Key Features](#key-features)
-8. [Technology Stack](#technology-stack)
-9. [Architecture](#architecture)
-10. [Installation & Setup](#installation--setup)
-11. [Future Roadmap](#future-roadmap)
-12. [Impact & Metrics](#impact--metrics)
-
----
-
 ## Inspiration
 
-The inspiration for PadhaKU emerged from observing three critical challenges in modern computer science education:
+PadhaKU was born from witnessing three critical gaps in modern online education:
 
-### Challenge 1: One-Size-Fits-All Learning
+**Accessibility Crisis**: Students with motor disabilities face significant barriers using traditional keyboards and mice, limiting their access to quality education. Current assistive technologies are expensive and complex.
 
-Traditional online courses follow a rigid curriculum that doesn't adapt to individual learning paces or styles. Students who need more time on certain concepts are forced to move forward, while advanced learners feel held back by predetermined schedules. This creates frustration on both ends of the spectrum and leads to high dropout rates in online education.
+**One-Size-Fits-All Approach**: Rigid curricula don't adapt to individual learning paces, causing frustration and high dropout rates.
 
-### Challenge 2: Accessibility Barriers
+**Lack of Immediate Support**: Students get stuck on concepts without instant help, leading to demotivation.
 
-Specially-abled students, particularly those with motor disabilities, face significant barriers when using traditional input devices like keyboards and mice. This limits their access to quality computer science education despite having the intellectual capacity and interest to excel in the field. Current assistive technologies are often expensive, limited in functionality, or require extensive setup.
+**Our Solution**: An AI-powered platform combining gesture-based interaction, personalized course generation, and 24/7 mentorship. PadhaKU makes education accessible to everyone, especially benefiting motor-impaired students who can learn hands-free using webcam gestures.
 
-### Challenge 3: Lack of Personalized Support
-
-While online learning platforms offer content at scale, they fail to provide the personalized mentorship and immediate doubt resolution that traditional classroom settings offer. Students often get stuck on concepts and have no immediate recourse, leading to demotivation and abandonment of learning goals.
-
-### Our Solution
-
-We envisioned a platform that would:
-- Generate personalized courses tailored to individual learning levels and goals using AI
-- Provide gesture-based controls that eliminate the need for traditional input devices
-- Offer 24/7 AI-powered mentorship for instant doubt resolution
-- Gamify the learning experience to maintain motivation and engagement
-- Make computer science education truly accessible to everyone, regardless of physical abilities
-
-The name "PadhaKU" combines the Hindi word "Padha" (to study) with "KU" (Knowledge Unlimited), symbolizing our mission to make limitless learning accessible to all.
+The name combines Hindi "Padha" (to study) with "KU" (Knowledge Unlimited) - limitless learning for all.
 
 ---
 
 ## What It Does
 
-PadhaKU is a comprehensive learning platform that provides six integrated features:
+PadhaKU is a comprehensive learning platform with six integrated features designed for all students, with special emphasis on accessibility:
 
-### 1. Magic Learn Suite
+### 1. Magic Learn Suite - Hands-Free Learning Tools
 
-A three-in-one learning toolset that revolutionizes how students interact with educational content:
+**DrawInAir**: Gesture-based drawing and math solver using webcam and hand tracking
+- Draw problems in mid-air with hand gestures (no keyboard/mouse needed)
+- MediaPipe tracks 21 hand landmarks at 30 FPS
+- AI analyzes drawings and provides step-by-step solutions
+- Perfect for motor-impaired students
 
-**DrawInAir - Gesture-Based Drawing & Math Solver**
-- Students can draw mathematical problems in mid-air using hand gestures captured by their webcam
-- MediaPipe hand tracking with 21 landmark detection provides precise finger position tracking
-- Five distinct gesture controls: drawing, moving, erasing, clearing, and analyzing
-- Google Gemini AI analyzes drawn content and provides step-by-step mathematical solutions
-- Optimized for 30 FPS smooth tracking with smart gesture locking to prevent accidental mode switches
-- Perfect for specially-abled students who cannot use traditional input devices
+**Image Reader**: Upload diagrams, code screenshots, or math expressions for AI analysis with custom instructions
 
-**Image Reader - Visual Learning Assistant**
-- Students can upload images of diagrams, charts, code screenshots, or mathematical expressions
-- Custom instruction input allows targeted analysis of specific aspects
-- Gemini 2.5 Flash provides accurate multimodal analysis and explanations
-- Supports all common image formats with drag-and-drop functionality
-
-**PlotCrafter - Concept Explainer**
-- Converts complex computer science concepts into relatable real-world examples
-- Generates concise, one-paragraph explanations for quick understanding
-- Uses conversational language to keep students engaged
-- Replaces overwhelming long-form content with focused, digestible learning
+**PlotCrafter**: Converts complex concepts into concise, real-world examples (one paragraph explanations)
 
 ### 2. AI Course Generator
-
-Democratizes education by allowing anyone to create professional-quality courses:
-
-- Users input course parameters: name, description, difficulty level, category, and chapter count
-- Gemini AI generates comprehensive course structure with chapters and subtopics
-- Each subtopic includes theory, real-world examples, and hands-on practice exercises
-- Automatic YouTube video search and embedding for visual learning
-- Courses stored in PostgreSQL database for persistence and sharing
-- Progress tracking with visual completion indicators
-- Point rewards for course and chapter completion
+- Create personalized courses on any topic with AI
+- Customize difficulty level, chapters (2-10), and categories
+- Auto-embedded YouTube videos for visual learning
+- Progress tracking with point rewards
 
 ### 3. Interactive Quiz System
-
-Hands-free assessment experience using computer vision:
-
-- Gesture-based quiz answering eliminates need for keyboard/mouse
-- Thumbs-down gesture triggers contextual hints when students get stuck
-- Detailed performance reports with explanations after completion
-- Supports multiple question formats: MCQs, true/false, coding challenges
-- Camera-based mode for complete hands-free experience
-- Adaptive difficulty based on student performance
+- Gesture-based quiz answering (hands-free mode)
+- Thumbs-down for hints, adaptive difficulty
+- Detailed performance reports
 
 ### 4. AI Mentor (AskSensei)
+- 24/7 Q&A on any educational topic
+- Voice interaction support (Vapi AI)
+- Code debugging and explanations
+- Context-aware conversations
 
-24/7 intelligent study companion:
+### 5. Gamification
+- Points system: (Courses × 10) + (Chapters × 5)
+- Global leaderboard and achievement badges
+- Confetti celebrations for milestones
 
-- Natural language Q&A for any computer science topic
-- Voice interaction using Vapi's voice AI technology
-- Context-aware responses that remember conversation history
-- Code explanation, debugging assistance, and best practices guidance
-- Markdown support with syntax-highlighted code blocks
-- Mathematical equation rendering for technical explanations
-
-### 5. Gamification System
-
-Maintains motivation through achievement and competition:
-
-- Point calculation: (Courses Completed × 10) + (Chapters Completed × 5)
-- Global leaderboard with real-time ranking updates
-- Achievement badges for milestones
-- Confetti animations and visual celebrations
-- Detailed progress analytics dashboard
-- Encourages consistent learning habits
-
-### 6. Comprehensive Authentication
-
-Secure and seamless user management:
-
-- Email/password authentication with bcrypt hashing
-- Google OAuth for one-click sign-in
-- JWT-based session management with NextAuth.js
-- Protected routes with middleware authorization
-- Personalized user dashboards
-- Progress persistence across devices
+### 6. Secure Authentication
+- Email/password and Google OAuth
+- Protected routes and personalized dashboards
 
 ---
 
 ## Target Audience
 
-PadhaKU is designed for a diverse range of learners:
+**All Students**: High school to adult learners across all subjects and skill levels
 
-### Primary Audience
+**Motor-Impaired Students**: Gesture controls eliminate keyboard/mouse barriers, making education truly accessible
 
-**Computer Science Students (Ages 15-25)**
-- High school students learning programming fundamentals
-- College students pursuing CS degrees
-- Self-taught developers building foundational knowledge
-- Bootcamp participants supplementing their curriculum
+**Self-Paced Learners**: Working professionals, career switchers, lifelong learners
 
-**Benefits**:
-- Personalized learning paths adapted to their pace
-- Instant doubt resolution without waiting for instructor availability
-- Gamified experience that makes learning engaging
-- Hands-on practice integrated into every topic
-
-### Secondary Audience
-
-**Specially-Abled Students**
-- Students with motor disabilities affecting keyboard/mouse use
-- Learners with limited hand mobility
-- Individuals seeking alternative input methods
-
-**Benefits**:
-- Gesture-based controls eliminate accessibility barriers
-- Voice-enabled AI mentor for hands-free interaction
-- Multiple input modalities for different abilities
-- Inclusive design that doesn't compromise functionality
-
-### Tertiary Audience
-
-**Self-Paced Learners**
-- Working professionals upskilling in CS
-- Career switchers learning programming
-- Hobbyists exploring computer science concepts
-- Lifelong learners pursuing knowledge
-
-**Benefits**:
-- Learn at their own pace without deadlines
-- Course content available 24/7
-- Bite-sized explanations for busy schedules
-- Progress tracking to maintain momentum
-
-### Educators & Content Creators
-
-**Teachers and Tutors**
-- CS instructors supplementing classroom teaching
-- Online tutors creating custom curriculum
-- Educational content creators
-
-**Benefits**:
-- Rapidly generate structured course content
-- Track student progress and engagement
-- Create differentiated learning paths
-- Reduce content creation time
+**Educators**: Teachers creating custom curriculum and tracking student progress
 
 ---
 
 ## How We Built It
 
-### Development Approach
+**Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS 4, Framer Motion
 
-PadhaKU was built using an agile, iterative development process over several months. We followed a modular architecture approach, building each feature as an independent component that integrates seamlessly with the core platform.
+**Backend**: Node.js with Next.js API routes, Flask (Python) for computer vision features
 
-### Architecture Overview
+**Database**: PostgreSQL + Supabase (dual connectivity for reliability)
 
-**Frontend Layer**
+**AI/ML**: Google Gemini 2.5 Flash (course generation, analysis), MediaPipe Hands (gesture tracking), Vapi (voice AI), OpenCV (video processing)
 
-Built with Next.js 15 and React 19, the frontend leverages:
-- Server-side rendering for optimal initial page load performance
-- Client-side navigation for smooth single-page application experience
-- TypeScript for type-safe development and reduced runtime errors
-- Tailwind CSS 4 for rapid UI development with consistent design language
-- Radix UI primitives for accessible, unstyled component foundations
-- shadcn/ui for beautiful, production-ready components
-- Framer Motion for smooth animations and page transitions
+**Authentication**: NextAuth.js with bcrypt and Google OAuth
 
-**Backend Layer**
+**Development Approach**: Agile, modular architecture with 5-phase iterative development
 
-Dual backend architecture for separation of concerns:
-- Next.js API routes handle authentication, course management, and database operations
-- Flask backend (Python) powers Magic Learn features with computer vision and AI
-- Process management system auto-starts/stops Flask server based on user activity
-- Heartbeat monitoring ensures backend only runs when actively needed
-- RESTful API design with JSON data interchange
-
-**Database Architecture**
-
-PostgreSQL with Supabase providing:
-- Relational data model for courses, users, progress, and leaderboard
-- JSONB columns for flexible course content storage
-- Efficient indexing for fast query performance
-- Connection pooling via pg library
-- Dual connectivity: direct PostgreSQL + Supabase REST API for reliability
-
-**AI Integration**
-
-Multiple AI services working in concert:
-- Google Gemini 2.5 Flash for course generation and content analysis
-- Separate API keys for each feature to avoid rate limiting
-- Custom prompt engineering for consistent, structured responses
-- Response validation and error handling for reliability
-- MediaPipe Hands for real-time gesture recognition
-- Vapi for natural voice interactions
-
-**Authentication System**
-
-NextAuth.js implementation featuring:
-- Credential provider with bcrypt password hashing
-- Google OAuth provider for social login
-- JWT session management with secure cookies
-- Custom callback functions for database user sync
-- Middleware for route protection
-
-### Feature Implementation Details
-
-**Magic Learn - DrawInAir**
-
-Technical implementation:
-1. Initialize webcam with OpenCV at 950x550 resolution, 30 FPS
-2. Configure MediaPipe Hands with optimized settings:
-   - `static_image_mode=False` for video tracking
-   - `max_num_hands=1` for performance
-   - `min_detection_confidence=0.7`
-   - `min_tracking_confidence=0.65` for smoothness
-   - `model_complexity=0` for speed
-3. Process each frame through MediaPipe to detect 21 hand landmarks
-4. Calculate finger states using adaptive thresholds based on hand size
-5. Implement smart gesture locking:
-   - Lock into gesture after 3 consistent frames
-   - Unlock after 3 frames of different gesture
-   - Instant switch (2 frames) for clear intentional changes
-6. Render drawing on HTML5 canvas with anti-aliasing
-7. On analyze gesture, convert canvas to PIL Image
-8. Send image to Gemini with specialized math analysis prompt
-9. Parse and display solution with step-by-step explanation
-
-**AI Course Generator**
-
-Implementation workflow:
-1. User submits course parameters via form
-2. Frontend sends POST request to `/api/feature-2/generate-course`
-3. Backend constructs detailed Gemini prompt including:
-   - Course metadata (name, level, category)
-   - Required JSON structure for response
-   - Chapter and subtopic organization
-   - Content requirements (theory, examples, exercises)
-4. Gemini generates structured JSON response
-5. Backend parses JSON and validates required fields
-6. For each subtopic, search YouTube Data API for relevant videos
-7. Store course data in PostgreSQL with JSONB content column
-8. Return course ID to frontend
-9. Frontend redirects to course viewer page
-10. User can navigate chapters, watch videos, read theory, complete exercises
-11. Progress tracked in database with completion timestamps
-12. Points awarded upon chapter/course completion
-
-**Gamification System**
-
-Mathematical model:
-```
-Total Points (P) = (Courses Completed (C) × 10) + (Chapters Completed (Ch) × 5)
-```
-
-Database schema:
-```sql
-CREATE TABLE user_progress (
-  user_id TEXT,
-  courses_completed INT DEFAULT 0,
-  chapters_completed INT DEFAULT 0,
-  total_points INT DEFAULT 0,
-  last_updated TIMESTAMP
-);
-```
-
-Leaderboard calculation:
-1. Query all users ordered by `total_points DESC, chapters_completed DESC`
-2. Assign ranks with tie-breaking logic
-3. Cache results for 5 minutes to reduce database load
-4. Real-time updates when user completes content
-5. Confetti animation triggered on point milestones
-
-### Development Workflow
-
-**Phase 1: Foundation (Week 1-2)**
-- Set up Next.js project with TypeScript and Tailwind
-- Configure PostgreSQL database and Supabase
-- Implement NextAuth.js authentication
-- Create basic UI components and layouts
-
-**Phase 2: Core Features (Week 3-6)**
-- Build AI Course Generator with Gemini integration
-- Develop course viewer with YouTube embedding
-- Implement progress tracking and database operations
-- Create gamification system with points and leaderboard
-
-**Phase 3: Magic Learn (Week 7-10)**
-- Integrate MediaPipe for hand tracking
-- Develop gesture recognition algorithms
-- Optimize for 30 FPS performance
-- Build DrawInAir, Image Reader, PlotCrafter features
-- Implement Flask backend with auto-management
-
-**Phase 4: Enhancements (Week 11-12)**
-- Add AI Mentor with Vapi voice integration
-- Build quiz system with gesture controls
-- Create landing page with professional design
-- Implement responsive design for mobile devices
-
-**Phase 5: Polish & Testing (Week 13-14)**
-- Extensive cross-browser testing
-- Performance optimization and code splitting
-- Security hardening and input validation
-- Documentation and deployment preparation
+**Key Implementation Highlights**:
+- Auto-start/stop Flask backend with heartbeat monitoring
+- Smart gesture locking (3-frame consistency) for smooth 30 FPS tracking
+- Dual database connection (direct PostgreSQL + Supabase REST API fallback)
+- Multi-layer AI response validation with retry logic
+- Responsive modal design with flexbox scrolling
 
 ---
 
 ## Challenges We Faced
 
-### Challenge 1: Real-Time Gesture Recognition Performance
+**1. Real-Time Gesture Performance**
+- Problem: Initial 10-15 FPS lag made drawing frustrating
+- Solution: Optimized MediaPipe config (model_complexity=0), selective frame processing, smart gesture locking
+- Result: Stable 30 FPS with smooth, responsive interaction
 
-**Problem**: Initial MediaPipe implementation caused significant frame rate drops (10-15 FPS), making the drawing experience laggy and frustrating. Users experienced delays between hand movements and on-screen feedback, breaking immersion and making precise drawing nearly impossible.
+**2. Backend Process Management**
+- Problem: Manual Flask server start/stop, wasted resources
+- Solution: Auto-start on demand with pythonw, heartbeat monitoring, graceful shutdown after 15s inactivity
+- Result: Seamless user experience with automatic resource cleanup
 
-**Root Cause**: 
-- Processing every single frame with full model complexity
-- Rendering blocking caused by AI analysis running on main thread
-- No gesture state management causing flickering between modes
+**3. Database Connection in Restricted Networks**
+- Problem: Port 5432 blocked by firewalls in schools/corporations
+- Solution: Dual-connection system - try direct PostgreSQL, fallback to Supabase REST API (HTTPS port 443)
+- Result: 100% network compatibility
 
-**Solution**:
-1. **Optimized MediaPipe Configuration**:
-   - Reduced `model_complexity` from 1 to 0 (lighter model)
-   - Lowered `min_tracking_confidence` from 0.75 to 0.65 for smoother tracking
-   - Set `max_num_hands=1` to focus computational resources
+**4. AI Response Consistency**
+- Problem: Gemini returning inconsistent JSON formats, causing crashes
+- Solution: Strict prompt engineering, response sanitization, schema validation, 3-attempt retry logic
+- Result: 95% success rate (up from 70%)
 
-2. **Frame Processing Optimization**:
-   - Implemented selective frame processing (every 2nd frame for landmark detection)
-   - Full rendering on every frame to maintain visual smoothness
-   - Result: 30 FPS consistent performance
-
-3. **Smart Gesture Locking**:
-   - Implemented state machine with hysteresis:
-     - Lock into gesture after 3 consecutive frames
-     - Unlock after 3 frames of different gesture
-     - Instant switch (2 frames) for clear intentional changes (e.g., drawing to moving)
-   - Prevents accidental mode switches from brief finger position changes
-   - Users can confidently draw without interruption
-
-4. **Async AI Analysis**:
-   - Moved Gemini API calls to separate thread
-   - Non-blocking analysis doesn't freeze video stream
-   - Loading indicator during analysis provides feedback
-
-**Impact**: Frame rate improved from 15 FPS to stable 30 FPS, creating smooth, responsive drawing experience comparable to native applications.
-
-### Challenge 2: Backend Process Management
-
-**Problem**: The Flask backend for Magic Learn required manual starting before use and manual stopping after, creating poor user experience. Additionally, leaving it running consumed system resources unnecessarily (150MB RAM, 5-10% CPU) even when not in use.
-
-**Initial Workaround**: README instructions telling users to manually run `python magic_learn_backend.py` in a separate terminal - unacceptable for production.
-
-**Solution**:
-Implemented comprehensive lifecycle management system:
-
-1. **Auto-Start on Demand**:
-   ```javascript
-   // API route: /api/magic-learn/start-backend
-   const spawn = require('child_process').spawn;
-   const pythonProcess = spawn('pythonw', ['magic_learn_backend.py'], {
-     cwd: backendDir,
-     detached: true,
-     stdio: 'ignore'
-   });
-   pythonProcess.unref(); // Allow parent to exit
-   ```
-   - Uses `pythonw.exe` instead of `python.exe` to run silently (no terminal window)
-   - Detached process runs independently of Node.js parent
-   - Health check polling confirms backend is ready before opening UI
-
-2. **Heartbeat Monitoring**:
-   ```javascript
-   // Frontend sends heartbeat every 5 seconds
-   setInterval(() => {
-     fetch('/api/magic-learn/heartbeat', { method: 'POST' });
-   }, 5000);
-   
-   // Backend tracks last heartbeat
-   let lastHeartbeat = Date.now();
-   setInterval(() => {
-     if (Date.now() - lastHeartbeat > 15000) {
-       cleanup(); // No heartbeat for 15s, shut down
-       process.exit(0);
-     }
-   }, 5000);
-   ```
-
-3. **Graceful Shutdown**:
-   - User closes Magic Learn UI → heartbeat stops
-   - Backend detects missing heartbeat after 15 seconds
-   - Cleanup function releases camera and MediaPipe resources
-   - Process exits cleanly with no orphaned processes
-
-4. **Error Handling**:
-   - Port conflict detection (if backend already running)
-   - Failed start notifications with troubleshooting hints
-   - Crash recovery with automatic restart attempts
-
-**Impact**: Users click "Launch Magic Learn" and everything just works. No technical knowledge required. Resources freed automatically when finished. Professional, seamless experience.
-
-### Challenge 3: Database Connection Issues in Production
-
-**Problem**: Direct PostgreSQL connections using `pg` library failed in certain network environments with `ENOTFOUND` errors. Corporate firewalls, educational institution networks, and some home routers blocked outbound connections on PostgreSQL's default port 5432. This made the courses feature completely non-functional for affected users.
-
-**Failed Attempts**:
-1. Connection string validation - confirmed strings were correct
-2. Firewall rule documentation - users couldn't modify institutional firewalls
-3. Port forwarding instructions - too technical for non-developer users
-
-**Solution**:
-Implemented dual-connection fallback system:
-
-1. **Primary: Direct PostgreSQL Connection**:
-   ```javascript
-   const pool = new Pool({
-     connectionString: process.env.DATABASE_URL,
-     ssl: { rejectUnauthorized: false }
-   });
-   ```
-   - Used in local development and unrestricted environments
-   - Fastest performance with direct database access
-
-2. **Fallback: Supabase REST API**:
-   ```javascript
-   import { createClient } from '@supabase/supabase-js';
-   
-   const supabase = createClient(
-     process.env.SUPABASE_URL,
-     process.env.SUPABASE_ANON_KEY
-   );
-   
-   // Works over HTTPS (port 443), bypasses firewall restrictions
-   const { data, error} = await supabase
-     .from('courses')
-     .select('*');
-   ```
-
-3. **Automatic Detection**:
-   ```javascript
-   async function queryCourses() {
-     try {
-       // Try direct connection first
-       return await pool.query('SELECT * FROM courses');
-     } catch (error) {
-       console.log('Direct connection failed, using Supabase API');
-       return await supabase.from('courses').select('*');
-     }
-   }
-   ```
-
-4. **Unified Query Abstraction**:
-   - Created database layer that works identically with both methods
-   - Business logic doesn't care which connection method is used
-   - Seamless transition between environments
-
-**Impact**: Course features work reliably in 100% of network environments. Port 443 (HTTPS) is universally allowed. Zero user-side configuration required.
-
-### Challenge 4: Course Content Overflow in Modal
-
-**Problem**: When displaying course subtopics with all content (embedded YouTube video, theory sections, examples, hands-on exercises), the modal became too tall and content was cut off. Users couldn't scroll to see all information, making content below the fold completely inaccessible.
-
-**Root Cause**: 
-- Modal using `h-full` with absolute positioning
-- Content area not properly configured for internal scrolling
-- Navigation footer pushing content up and out of view
-
-**Solution**:
-Restructured modal layout with flexbox:
-
-```typescript
-<div className="h-[90vh] flex flex-col">
-  {/* Fixed Header */}
-  <div className="flex-shrink-0">
-    <h2>Subtopic Title</h2>
-    <button onClick={closeModal}>Close</button>
-  </div>
-  
-  {/* Scrollable Content */}
-  <div className="flex-1 overflow-y-auto p-6">
-    <iframe /> {/* YouTube video */}
-    <div>Theory content...</div>
-    <div>Examples...</div>
-    <div>Hands-on exercises...</div>
-  </div>
-  
-  {/* Fixed Footer Navigation */}
-  <div className="flex-shrink-0 border-t p-4">
-    <button>Previous</button>
-    <button>Next</button>
-  </div>
-</div>
-```
-
-Key CSS properties:
-- `max-h-[90vh]`: Modal never taller than viewport
-- `flex flex-col`: Vertical stacking of header, content, footer
-- `flex-1 overflow-y-auto`: Content area takes remaining space and scrolls
-- `flex-shrink-0`: Header and footer maintain size
-- `smooth-scroll-behavior`: Polished scrolling experience
-
-**Impact**: All content accessible with smooth scrolling. Navigation always visible. Responsive to different viewport sizes.
-
-### Challenge 5: AI Response Consistency
-
-**Problem**: Google Gemini AI sometimes returned course content in inconsistent formats, causing parsing errors and broken course displays. Examples:
-- Returning plain text instead of JSON
-- Missing required fields like `chapters` or `subtopics`
-- Nested objects with unexpected structures
-- Extra commentary outside JSON structure
-
-**Consequences**:
-- Frontend crashes trying to access undefined properties
-- Incomplete courses with missing chapters
-- User frustration and abandoned course generation attempts
-- Manual content fixing required
-
-**Solution**:
-Implemented multi-layer validation and error handling:
-
-1. **Strict Prompt Engineering**:
-   ```javascript
-   const prompt = `Generate a course with EXACTLY this JSON structure:
-   {
-     "courseName": "string",
-     "chapters": [
-       {
-         "chapterName": "string",
-         "subtopics": [
-           {
-             "name": "string",
-             "theory": "string",
-             "examples": "string",
-             "handsOn": "string"
-           }
-         ]
-       }
-     ]
-   }
-   
-   CRITICAL: Respond ONLY with valid JSON. No explanations. No markdown formatting.`;
-   ```
-
-2. **Response Sanitization**:
-   ```javascript
-   function sanitizeAIResponse(text) {
-     // Remove markdown code fences
-     text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-     // Remove leading/trailing whitespace
-     text = text.trim();
-     // Extract JSON if embedded in text
-     const jsonMatch = text.match(/\{[\s\S]*\}/);
-     return jsonMatch ? jsonMatch[0] : text;
-   }
-   ```
-
-3. **Schema Validation**:
-   ```javascript
-   function validateCourseData(data) {
-     if (!data.courseName || typeof data.courseName !== 'string') {
-       throw new Error('Missing or invalid courseName');
-     }
-     if (!Array.isArray(data.chapters) || data.chapters.length === 0) {
-       throw new Error('Missing or empty chapters array');
-     }
-     data.chapters.forEach((chapter, i) => {
-       if (!chapter.chapterName) {
-         throw new Error(`Chapter ${i} missing chapterName`);
-       }
-       if (!Array.isArray(chapter.subtopics)) {
-         throw new Error(`Chapter ${i} missing subtopics array`);
-       }
-       // Validate each subtopic...
-     });
-     return true;
-   }
-   ```
-
-4. **Retry Logic**:
-   ```javascript
-   async function generateCourse(params, attempt = 1) {
-     try {
-       const response = await gemini.generateContent(prompt);
-       const sanitized = sanitizeAIResponse(response.text);
-       const parsed = JSON.parse(sanitized);
-       validateCourseData(parsed);
-       return parsed;
-     } catch (error) {
-       if (attempt < 3) {
-         console.log(`Attempt ${attempt} failed, retrying...`);
-         await sleep(1000);
-         return generateCourse(params, attempt + 1);
-       }
-       throw new Error('Course generation failed after 3 attempts');
-     }
-   }
-   ```
-
-5. **User-Friendly Error Messages**:
-   ```javascript
-   try {
-     const course = await generateCourse(params);
-   } catch (error) {
-     showNotification({
-       type: 'error',
-       title: 'Course generation failed',
-       message: 'Please try again with a simpler course structure or fewer chapters.',
-       suggestions: [
-         'Reduce number of chapters to 3-5',
-         'Use more specific course description',
-         'Check your internet connection'
-       ]
-     });
-   }
-   ```
-
-**Impact**: Course generation success rate improved from ~70% to ~95%. Failed generations provide actionable feedback instead of cryptic error messages.
-
-### Challenge 6: Cross-Platform Compatibility
-
-**Problem**: Features working perfectly on Windows failed on macOS and Linux due to:
-- Path separator differences (`\` vs `/`)
-- Python interpreter naming (`python` vs `python3`)
-- Process spawning differences
-- Line ending incompatibilities
-
-**Solution**:
-1. Used Node.js `path` module for platform-agnostic paths
-2. Implemented Python interpreter detection:
-   ```javascript
-   const pythonCmd = process.platform === 'win32' ? 'pythonw' : 'python3';
-   ```
-3. Normalized line endings in uploaded files
-4. Tested on Windows, macOS, and Linux throughout development
-
-**Impact**: Platform-agnostic codebase works consistently across operating systems.
+**5. Content Overflow in Modals**
+- Problem: Course content cut off, no scrolling
+- Solution: Flexbox layout with fixed header/footer, scrollable content area
+- Result: All content accessible on any viewport size
 
 ---
 
 ## What We Learned
 
-Building PadhaKU taught us invaluable lessons across technical, design, and collaborative domains:
+**Technical**: AI requires validation not trust; performance optimization through model selection and frame processing; dual-connectivity ensures reliability; gesture locking improves UX; comprehensive error handling builds trust
 
-### Technical Learning
+**Design**: Accessibility features benefit everyone; concise content outperforms lengthy explanations; immediate feedback is critical; gamification maintains engagement; progressive disclosure reduces overwhelm
 
-**AI Integration & Prompt Engineering**
-- Learned that AI output quality depends heavily on prompt structure and constraints
-- Discovered the importance of specifying exact JSON schemas in prompts
-- Understood that AI responses require validation, not blind trust
-- Gained experience with multimodal AI (text + images)
-- Learned to balance AI capability with computational cost
+**Development**: Start with MVP and iterate; user testing reveals wrong assumptions; documentation saves time; platform-agnostic code matters; comprehensive logging simplifies debugging
 
-**Computer Vision & Real-Time Processing**
-- Understood the performance trade-offs in model complexity
-- Learned optimization techniques: frame skipping, model selection, resolution tuning
-- Discovered the importance of gesture locking for user experience
-- Gained expertise in MediaPipe's hand tracking capabilities
-- Learned to process 30 FPS video streams without blocking
+**Key Insight**: Building for accessibility (motor-impaired students) created innovations that improved the experience for all users - gesture controls are faster and more intuitive than traditional input for many tasks.
 
-**Full-Stack Architecture**
-- Learned to design scalable database schemas with flexibility (JSONB columns)
-- Understood the benefits of dual-connectivity approaches for reliability
-- Gained experience with process lifecycle management
-- Learned to implement heartbeat monitoring for resource optimization
-- Discovered the importance of error boundaries and graceful degradation
+---
 
-**Frontend Development**
-- Mastered Next.js 15 server-side rendering and API routes
-- Learned React 19's latest features and hooks
-- Understood TypeScript's value in catching errors at compile time
-- Gained proficiency with Tailwind CSS utility-first approach
-- Learned Framer Motion for smooth animations
+## Technology Stack
 
-**Security & Authentication**
-- Understood JWT token management and secure session handling
-- Learned bcrypt password hashing best practices
-- Gained experience with OAuth 2.0 flows
-- Discovered the importance of input validation and sanitization
-- Learned to prevent SQL injection with parameterized queries
+**Languages**: TypeScript, Python, JavaScript, HTML5, CSS3, SQL
 
-### Design Learning
+**Frontend**: Next.js 15.3.4, React 19, Tailwind CSS 4, Radix UI, shadcn/ui, Framer Motion 12.19, Lucide React
 
-**User Experience**
-- Learned that accessibility features benefit all users, not just specially-abled ones
-- Understood the importance of immediate visual feedback in gesture controls
-- Discovered that less is more - concise explanations outperform lengthy content
-- Learned to balance feature richness with simplicity
-- Understood the power of gamification in maintaining engagement
+**Backend**: Node.js 20, Flask 3.1, NextAuth.js 4.24
 
-**User Interface**
-- Learned responsive design principles for cross-device compatibility
-- Understood the importance of consistent design language
-- Gained expertise in creating accessible interfaces (ARIA labels, keyboard navigation)
-- Learned to use animations purposefully, not decoratively
-- Discovered the value of loading states and progress indicators
+**Database**: PostgreSQL 16, Supabase, pg library
 
-**Information Architecture**
-- Learned to structure complex content for easy navigation
-- Understood the importance of clear visual hierarchy
-- Gained experience with modal design patterns
-- Learned to organize features logically in navigation
-- Discovered the value of progressive disclosure
+**AI/ML**: Google Gemini 2.5 Flash, MediaPipe Hands, Vapi Voice AI, OpenCV, NumPy, Pillow
 
-### Problem-Solving
+**APIs**: YouTube Data API v3, Google OAuth 2.0
 
-**Debugging Complex Systems**
-- Learned to isolate issues in multi-component architectures
-- Understood the value of comprehensive logging
-- Gained experience with cross-browser debugging
-- Learned to reproduce bugs in isolated environments
-- Discovered the importance of error messages that guide users to solutions
+**Dev Tools**: Git, GitHub, npm, pip, ESLint, TypeScript Compiler
 
-**Performance Optimization**
-- Learned to identify bottlenecks through profiling
-- Understood the trade-offs between accuracy and speed
-- Gained experience with code splitting and lazy loading
-- Learned to optimize database queries with indexing
-- Discovered the value of caching frequently accessed data
+---
 
-**Adaptability**
-- Learned to pivot when original approaches failed (e.g., network restrictions)
-- Understood the importance of fallback mechanisms
-- Gained experience with graceful degradation
-- Learned to prioritize features for MVP
-- Discovered the value of iterative development
+## Built With
 
-### Team Collaboration
+- Next.js - Server-side rendering and API routes
+- React - Component-based UI
+- TypeScript - Type-safe development
+- Tailwind CSS - Utility-first styling
+- PostgreSQL - Relational database
+- Supabase - Database hosting and REST API
+- Google Gemini AI - Course generation and content analysis
+- MediaPipe - Hand tracking and gesture recognition
+- OpenCV - Video processing
+- Flask - Python backend for computer vision
+- NextAuth.js - Authentication and session management
+- Vapi - Voice AI interactions
+- Framer Motion - Smooth animations
+- YouTube Data API - Video embedding
 
-**Communication**
-- Learned to write clear API contracts before implementation
-- Understood the importance of code reviews
-- Gained experience with asynchronous collaboration
-- Learned to document decisions and rationale
-- Discovered the value of pair programming for complex problems
+---
 
-**Version Control**
-- Learned Git branching strategies (feature branches, main protection)
-- Understood the importance of atomic commits
-- Gained experience with merge conflict resolution
-- Learned to write meaningful commit messages
-- Discovered the value of pull request templates
+## Impact & Accessibility
 
-**Project Management**
-- Learned to estimate task complexity and time requirements
-- Understood the importance of milestone setting
-- Gained experience with agile development practices
-- Learned to balance perfectionism with deadlines
-- Discovered the value of regular progress demos
+**Breaking Barriers**: PadhaKU makes education accessible to motor-impaired students through gesture-based controls, eliminating the need for keyboards and mice. Students can draw, navigate, answer quizzes, and learn entirely hands-free.
 
-### Key Takeaways
+**Universal Design**: Features built for accessibility benefit all users - gesture controls are often faster and more intuitive than traditional input methods.
 
-1. **Start Simple, Iterate**: Build MVP first, add complexity incrementally
-2. **User Testing is Critical**: Assumptions about user behavior are often wrong
-3. **Error Handling > Feature Addition**: Robust error handling creates trust
-4. **Documentation Pays Off**: Future self and teammates will thank you
-5. **Accessibility is Not Optional**: Design for everyone from the start
-6. **Performance Matters**: Users notice even 100ms delays
-7. **Security Cannot Be Afterthought**: Build it in from day one
-8. **AI is Tool, Not Magic**: Validate, verify, and have fallbacks
-9. **Community Support Accelerates**: Open source libraries and forums are invaluable
-10. **Passion Fuels Persistence**: Genuine care for the problem keeps you going through challenges
+**24/7 Support**: AI mentor provides instant help regardless of timezone or physical location.
+
+**Personalized Learning**: Adaptive content and self-paced courses accommodate different learning styles and speeds.
+
+**Target Impact** (Year 1): 10,000+ users, 500+ motor-impaired students benefiting from accessibility features, 70%+ course completion rate, partnerships with disability advocacy organizations.
+
+---
+
+## Future Roadmap
+
+**Version 2.0** (2025): Mobile apps (iOS/Android), multi-language support (Spanish, Hindi, Mandarin), advanced analytics with ML recommendations, real-time study rooms, peer collaboration
+
+**Version 3.0** (2026): Certification system with blockchain verification, enterprise features, content marketplace, enhanced gamification with daily challenges
+
+**Version 4.0** (2026+): AR/VR integration for immersive learning, emotion detection for engagement optimization, offline-first architecture, global expansion with regional partnerships
+
+---
+
+## Installation & Setup
+
+**Prerequisites**: Node.js 20+, Python 3.9+, PostgreSQL 16
+
+**Quick Start**:
+```bash
+# Clone repository
+git clone https://github.com/Anoop1925/Eduverse.git
+cd Eduverse
+
+# Install dependencies
+npm install
+pip install -r requirements.txt
+
+# Configure environment variables (.env.local)
+DATABASE_URL=<your-postgresql-url>
+SUPABASE_URL=<your-supabase-url>
+SUPABASE_ANON_KEY=<your-supabase-key>
+GOOGLE_GEMINI_API_KEY=<your-gemini-key>
+NEXTAUTH_SECRET=<generate-secret>
+GOOGLE_CLIENT_ID=<oauth-client-id>
+GOOGLE_CLIENT_SECRET=<oauth-secret>
+
+# Setup database
+psql -U postgres -d padhaku -f database_schema.sql
+
+# Run development servers
+npm run dev  # Next.js on http://localhost:3000
+# Flask backend auto-starts on demand
+```
+
+Detailed instructions in README.md.
+
+---
+
+## Conclusion
+
+PadhaKU demonstrates how modern AI and computer vision can break down educational barriers and create truly inclusive learning experiences. By designing for accessibility from day one, we've built a platform that benefits all learners while specifically empowering motor-impaired students to pursue education without limitations.
+
+Our journey taught us that constraints (like designing for hands-free interaction) drive innovation that improves experiences universally. We're excited to continue evolving PadhaKU based on user feedback and technological advancements.
+
+**Thank you for considering PadhaKU. We believe education should be limitless and accessible to everyone.**
+
+---
+
+**Contact**: [GitHub Repository](https://github.com/Anoop1925/Eduverse) | Live Demo Available
+
+**Submitted with dedication to accessible education for all students**
 
 ---
 

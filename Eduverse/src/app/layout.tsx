@@ -16,9 +16,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PadhaKU - AI-Powered Learning Platform",
   description: "Your all-in-one edutech platform to learn, grow, and master new skills using smart AI-assisted features",
-  icons: {
-    icon: '/App-Icon.png',
-  },
 };
 
 export default function RootLayout({
