@@ -17,9 +17,10 @@ const authOptions: NextAuthOptions = {
             "openid",
             "email",
             "profile",
-            "https://www.googleapis.com/auth/classroom.courses.readonly",
-            "https://www.googleapis.com/auth/classroom.announcements.readonly",
-            "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
+            // Google Classroom scopes temporarily removed until verification approved
+            // "https://www.googleapis.com/auth/classroom.courses.readonly",
+            // "https://www.googleapis.com/auth/classroom.announcements.readonly",
+            // "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
           ].join(" "),
         },
       },
