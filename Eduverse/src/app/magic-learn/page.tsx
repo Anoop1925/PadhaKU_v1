@@ -732,7 +732,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       
       // RENDERING LOOP: Runs at 60 FPS for smooth display
       const renderFrame = () => {
-        if (!videoRef.current || !canvasRef.current || !isStreaming) {
+        if (!videoRef.current || !canvasRef.current) {
           return
         }
         
@@ -751,7 +751,9 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         }
         
         // Continue loop
-        animationFrameRef.current = requestAnimationFrame(renderFrame)
+        if (animationFrameRef.current !== null) {
+          animationFrameRef.current = requestAnimationFrame(renderFrame)
+        }
       }
       
       // PROCESSING LOOP: Sends frames to backend at 10 FPS
@@ -1533,7 +1535,13 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
             <div className="relative bg-gray-900 rounded-lg overflow-hidden">
               <video ref={videoRef} className="hidden" autoPlay playsInline muted />
-              <canvas ref={canvasRef} width={950} height={550} className={isStreaming ? "w-full h-auto" : "hidden"} />
+              <canvas 
+                ref={canvasRef} 
+                width={950} 
+                height={550} 
+                className="w-full h-auto"
+                style={{ display: isStreaming ? 'block' : 'none' }}
+              />
               
               {!isStreaming && (
                 <div className="flex items-center justify-center h-[550px] text-gray-400">
