@@ -659,6 +659,7 @@ function AboutContent({ theme }: { theme: 'light' | 'dark' }) {
 function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<string>('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -667,6 +668,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const lastGestureRef = useRef<string>('None')
   const [showTutorial, setShowTutorial] = useState(false)
   const [showTutorialPrompt, setShowTutorialPrompt] = useState(true)
+  const animationFrameRef = useRef<number | null>(null)
   const processingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const isProcessingRef = useRef<boolean>(false)
   const processedImageRef = useRef<HTMLImageElement | null>(null)
@@ -734,9 +736,32 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         processedImageRef.current = document.createElement('img')
       }
       
-      // PROCESSING LOOP: Get processed frames from backend at 30 FPS (faster than before)
+      // VIDEO RENDERING: Smooth 60 FPS display
+      const renderVideoFrame = () => {
+        if (!videoRef.current || !canvasRef.current) return
+        
+        const canvas = canvasRef.current
+        const ctx = canvas.getContext('2d')
+        if (!ctx || !videoRef.current.videoWidth) return
+        
+        // Draw raw video mirrored for smooth playback
+        ctx.save()
+        ctx.scale(-1, 1)
+        ctx.translate(-950, 0)
+        ctx.drawImage(videoRef.current, 0, 0, 950, 550)
+        ctx.restore()
+        
+        if (isStreaming) {
+          animationFrameRef.current = requestAnimationFrame(renderVideoFrame)
+        }
+      }
+      
+      // Start smooth video rendering
+      renderVideoFrame()
+      
+      // PROCESSING LOOP: Get hand tracking overlays from backend at 30 FPS
       const processFrame = async () => {
-        if (isProcessingRef.current || !videoRef.current || !canvasRef.current) {
+        if (isProcessingRef.current || !videoRef.current || !overlayCanvasRef.current) {
           return
         }
         
@@ -744,9 +769,6 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         
         try {
           const video = videoRef.current
-          const canvas = canvasRef.current
-          const ctx = canvas.getContext('2d')
-          if (!ctx) return
           
           // Capture frame
           const tempCanvas = document.createElement('canvas')
@@ -772,16 +794,19 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
           
           const result = await res.json()
           if (result.success && result.frame) {
-            // Draw processed frame immediately
+            // Draw hand tracking overlay
             const img = processedImageRef.current
-            if (img) {
+            const overlayCanvas = overlayCanvasRef.current
+            const overlayCtx = overlayCanvas?.getContext('2d')
+            
+            if (img && overlayCtx) {
               img.onload = () => {
-                ctx.clearRect(0, 0, 950, 550)
-                ctx.save()
-                ctx.scale(-1, 1)
-                ctx.translate(-950, 0)
-                ctx.drawImage(img, 0, 0, 950, 550)
-                ctx.restore()
+                overlayCtx.clearRect(0, 0, 950, 550)
+                overlayCtx.save()
+                overlayCtx.scale(-1, 1)
+                overlayCtx.translate(-950, 0)
+                overlayCtx.drawImage(img, 0, 0, 950, 550)
+                overlayCtx.restore()
               }
               img.src = result.frame
             }
@@ -794,7 +819,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         }
       }
       
-      // Run at 30 FPS (every 33ms) for smoother hand tracking
+      // Run processing at 30 FPS
       processingIntervalRef.current = setInterval(processFrame, 33)
       
     } catch (err: any) {
@@ -806,6 +831,14 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
   const stopCamera = async () => {
     try {
+      setIsStreaming(false)
+      
+      // Cancel animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
+      }
+      
       // Stop processing loop
       if (processingIntervalRef.current) {
         clearInterval(processingIntervalRef.current)
@@ -1528,12 +1561,21 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
             <div className="relative bg-gray-900 rounded-lg overflow-hidden">
               <video ref={videoRef} className="hidden" autoPlay playsInline muted />
               
-              {/* Single canvas - video + hand tracking at 60 FPS */}
+              {/* Base canvas - raw video at 60 FPS */}
               <canvas 
                 ref={canvasRef} 
                 width={950} 
                 height={550} 
-                className="w-full h-auto"
+                className="w-full h-auto absolute top-0 left-0"
+                style={{ display: isStreaming ? 'block' : 'none' }}
+              />
+              
+              {/* Overlay canvas - hand tracking from backend at 30 FPS */}
+              <canvas 
+                ref={overlayCanvasRef} 
+                width={950} 
+                height={550} 
+                className="w-full h-auto absolute top-0 left-0 pointer-events-none"
                 style={{ display: isStreaming ? 'block' : 'none' }}
               />
               

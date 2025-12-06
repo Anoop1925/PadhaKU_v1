@@ -530,21 +530,28 @@ def process_browser_frame():
             current_gesture = "None"
             p1, p2 = 0, 0
         
-        # Blend canvas with video (EXACT original logic)
-        blended = cv2.addWeighted(img, 0.7, imgCanvas, 1, 0)
-        imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
-        _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
-        imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
-        blended = cv2.bitwise_and(blended, imgInv)
-        final_img = cv2.bitwise_or(blended, imgCanvas)
+        # Create transparent overlay with hand tracking + drawings
+        overlay = np.zeros((550, 950, 4), dtype=np.uint8)  # RGBA
         
-        # Encode full processed frame (ORIGINAL logic)
-        _, buffer = cv2.imencode('.jpg', final_img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        # Add hand landmarks to overlay
+        overlay[:, :, :3] = img  # Copy RGB channels
+        overlay[:, :, 3] = 255  # Fully opaque for hand tracking
+        
+        # Blend canvas drawings
+        canvas_gray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
+        _, canvas_mask = cv2.threshold(canvas_gray, 1, 255, cv2.THRESH_BINARY)
+        
+        # Apply canvas to overlay
+        overlay[:, :, :3] = cv2.addWeighted(overlay[:, :, :3], 0.7, imgCanvas, 1, 0)
+        overlay[:, :, 3] = np.maximum(overlay[:, :, 3], canvas_mask)  # Combine alphas
+        
+        # Encode as PNG to preserve transparency
+        _, buffer = cv2.imencode('.png', overlay)
         frame_base64 = base64.b64encode(buffer).decode('utf-8')
         
         return jsonify({
             'success': True,
-            'frame': f'data:image/jpeg;base64,{frame_base64}',
+            'frame': f'data:image/png;base64,{frame_base64}',
             'gesture': current_gesture
         })
         
