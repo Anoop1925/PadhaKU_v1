@@ -379,25 +379,106 @@ def generate_frames():
 
 @app.route('/api/drawinair/start', methods=['POST'])
 def start_drawinair():
-    """Start DrawInAir camera"""
+    """Start DrawInAir - Returns success without starting camera (browser handles camera)"""
     try:
-        # Check if running in cloud environment (no camera available)
-        if os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('VERCEL'):
-            return jsonify({
-                'success': False,
-                'error': 'Camera not available',
-                'message': 'DrawInAir requires a physical webcam and currently only works in local development. Please use Image Reader or Plot Crafter features instead, which work perfectly in production!'
-            }), 503
+        # Initialize MediaPipe for hand tracking (no camera needed on server)
+        global mphands, imgCanvas
         
-        if initialize_camera():
-            return jsonify({'success': True, 'message': 'Camera started'})
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to open camera',
-                'message': 'Could not access webcam. Please check camera permissions and try again.'
-            }), 500
+        if imgCanvas is None:
+            imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
+        
+        if mphands is None:
+            mphands = hands.Hands(
+                static_image_mode=False,
+                max_num_hands=1,
+                min_detection_confidence=0.7,
+                min_tracking_confidence=0.65,
+                model_complexity=0
+            )
+        
+        return jsonify({
+            'success': True, 
+            'message': 'DrawInAir initialized (browser-based camera)',
+            'mode': 'browser-camera'
+        })
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/drawinair/process-frame', methods=['POST'])
+def process_browser_frame():
+    """Process a video frame from browser camera with hand tracking"""
+    global imgCanvas, mphands, current_gesture, p1, p2, gesture_lock_mode, gesture_lock_counter
+    
+    try:
+        data = request.json
+        if not data or 'frame' not in data:
+            return jsonify({'success': False, 'error': 'No frame data provided'}), 400
+        
+        # Decode base64 frame from browser
+        frame_data = data['frame']
+        if ',' in frame_data:
+            frame_data = frame_data.split(',')[1]
+        
+        img_bytes = base64.b64decode(frame_data)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            return jsonify({'success': False, 'error': 'Failed to decode frame'}), 400
+        
+        # Resize to match expected dimensions
+        img = cv2.resize(img, (950, 550))
+        
+        # Initialize canvas if needed
+        if imgCanvas is None:
+            imgCanvas = np.zeros((550, 950, 3), dtype=np.uint8)
+        
+        # Process with MediaPipe (reuse existing hand tracking logic)
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        result = mphands.process(imgRGB)
+        
+        landmark_list = []
+        if result.multi_hand_landmarks:
+            for hand_lms in result.multi_hand_landmarks:
+                for id, lm in enumerate(hand_lms.landmark):
+                    h, w, c = img.shape
+                    cx, cy = int(lm.x * w), int(lm.y * h)
+                    landmark_list.append([id, cx, cy])
+        
+        # Simple gesture detection (thumb + index = drawing)
+        if len(landmark_list) >= 21:
+            # Basic drawing mode
+            cx, cy = landmark_list[8][1], landmark_list[8][2]
+            if p1 == 0 and p2 == 0:
+                p1, p2 = cx, cy
+            else:
+                cv2.line(imgCanvas, (p1, p2), (cx, cy), (255, 0, 255), 6)
+            p1, p2 = cx, cy
+            current_gesture = "Drawing"
+        else:
+            p1, p2 = 0, 0
+            current_gesture = "None"
+        
+        # Blend canvas with video
+        blended = cv2.addWeighted(img, 0.7, imgCanvas, 1, 0)
+        imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
+        _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
+        imgInv = cv2.cvtColor(imgInv, cv2.COLOR_GRAY2BGR)
+        blended = cv2.bitwise_and(blended, imgInv)
+        final_img = cv2.bitwise_or(blended, imgCanvas)
+        
+        # Encode result
+        _, buffer = cv2.imencode('.jpg', final_img)
+        frame_base64 = base64.b64encode(buffer).decode('utf-8')
+        
+        return jsonify({
+            'success': True,
+            'frame': f'data:image/jpeg;base64,{frame_base64}',
+            'gesture': current_gesture
+        })
+        
+    except Exception as e:
+        print(f"Error processing frame: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/drawinair/stop', methods=['POST'])
