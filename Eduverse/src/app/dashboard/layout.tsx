@@ -13,7 +13,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [showLogout, setShowLogout] = useState(false);
 
   const handleLogout = () => {
-    signOut({ redirect: true, callbackUrl: "/auth" });
+    signOut({ redirect: true, callbackUrl: "/sign-in" });
   };
 
   const navLinks = [
