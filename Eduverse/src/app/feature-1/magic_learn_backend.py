@@ -381,10 +381,22 @@ def generate_frames():
 def start_drawinair():
     """Start DrawInAir camera"""
     try:
+        # Check if running in cloud environment (no camera available)
+        if os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('VERCEL'):
+            return jsonify({
+                'success': False,
+                'error': 'Camera not available',
+                'message': 'DrawInAir requires a physical webcam and currently only works in local development. Please use Image Reader or Plot Crafter features instead, which work perfectly in production!'
+            }), 503
+        
         if initialize_camera():
             return jsonify({'success': True, 'message': 'Camera started'})
         else:
-            return jsonify({'success': False, 'error': 'Failed to open camera'}), 500
+            return jsonify({
+                'success': False,
+                'error': 'Failed to open camera',
+                'message': 'Could not access webcam. Please check camera permissions and try again.'
+            }), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
