@@ -657,7 +657,8 @@ function AboutContent({ theme }: { theme: 'light' | 'dark' }) {
 }
 
 function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
-  const imgRef = useRef<HTMLImageElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<string>('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -666,7 +667,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const lastGestureRef = useRef<string>('None')
   const [showTutorial, setShowTutorial] = useState(false)
   const [showTutorialPrompt, setShowTutorialPrompt] = useState(true)
-  const frameIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -701,81 +702,91 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
     try {
       setError('')
       
-      // Start backend camera
+      // Initialize backend MediaPipe
       const response = await fetch(`${BACKEND_URL}/api/drawinair/start`, {
         method: 'POST'
       })
       
       const data = await response.json()
-      
       if (!data.success) {
-        setError(data.error || 'Failed to start camera')
+        setError(data.error || 'Failed to initialize backend')
         return
       }
       
-      // Set video feed source for smooth 30 FPS streaming
-      if (imgRef.current) {
-        imgRef.current.src = `${BACKEND_URL}/api/drawinair/video-feed?t=${Date.now()}`
+      // Get browser camera
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: 950, height: 550, facingMode: 'user' } 
+      })
+      
+      if (!videoRef.current || !canvasRef.current) {
+        throw new Error('Video elements not ready')
       }
+      
+      videoRef.current.srcObject = stream
+      await videoRef.current.play()
       
       setIsStreaming(true)
       
-      // Poll for gesture updates
-      frameIntervalRef.current = setInterval(async () => {
+      // SMOOTH rendering with requestAnimationFrame
+      const renderFrame = async () => {
+        if (!videoRef.current || !canvasRef.current) return
+        
+        const video = videoRef.current
+        const canvas = canvasRef.current
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        
+        // Capture and send frame
+        ctx.drawImage(video, 0, 0, 950, 550)
+        const frameData = canvas.toDataURL('image/jpeg', 0.7)
+        
         try {
-          const gestureResponse = await fetch(`${BACKEND_URL}/api/drawinair/gesture`)
-          const gestureData = await gestureResponse.json()
-          if (gestureData.success) {
-            setCurrentGesture(gestureData.gesture || 'None')
+          const res = await fetch(`${BACKEND_URL}/api/drawinair/process-frame`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ frame: frameData })
+          })
+          
+          const result = await res.json()
+          if (result.success && result.frame) {
+            const img = new Image()
+            img.onload = () => ctx.drawImage(img, 0, 0, 950, 550)
+            img.src = result.frame
+            setCurrentGesture(result.gesture || 'None')
           }
         } catch (err) {
-          console.error('Gesture polling error:', err)
+          console.error('Frame error:', err)
         }
-      }, 100)
+        
+        // Continue at 60 FPS
+        animationFrameRef.current = requestAnimationFrame(renderFrame)
+      }
       
-      console.log('DrawInAir camera started successfully!')
+      animationFrameRef.current = requestAnimationFrame(renderFrame)
       
     } catch (err: any) {
-      console.error('Error starting camera:', err)
-      console.error('Error details:', {
-        name: err.name,
-        message: err.message,
-        stack: err.stack
-      })
-      
-      if (err.name === 'NotAllowedError') {
-        setError('Camera permission denied. Please allow camera access and try again.')
-      } else if (err.name === 'NotFoundError') {
-        setError('No camera found. Please connect a camera and try again.')
-      } else if (err.message) {
-        setError(`Camera error: ${err.message}`)
-      } else {
-        setError('Failed to access camera. Please check your browser permissions.')
-      }
-      
-      // Clean up on error
+      console.error('Camera error:', err)
+      setError(err.message || 'Failed to start camera')
       setIsStreaming(false)
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current)
-        frameIntervalRef.current = null
-      }
     }
   }
 
   const stopCamera = async () => {
     try {
-      // Stop gesture polling
-      if (frameIntervalRef.current) {
-        clearInterval(frameIntervalRef.current)
-        frameIntervalRef.current = null
+      // Stop animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
       }
       
-      // Clear image source
-      if (imgRef.current) {
-        imgRef.current.src = ''
+      // Stop browser camera
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream
+        stream.getTracks().forEach(track => track.stop())
+        videoRef.current.srcObject = null
       }
       
-      // Notify backend to stop camera
+      // Notify backend
       await fetch(`${BACKEND_URL}/api/drawinair/stop`, {
         method: 'POST'
       })
@@ -1478,33 +1489,26 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
             )}
 
             <div className="relative bg-gray-900 rounded-lg overflow-hidden">
-              {!isStreaming ? (
+              <video ref={videoRef} className="hidden" autoPlay playsInline muted />
+              <canvas ref={canvasRef} width={950} height={550} className={isStreaming ? "w-full h-auto" : "hidden"} />
+              
+              {!isStreaming && (
                 <div className="flex items-center justify-center h-[550px] text-gray-400">
                   <div className="text-center">
                     <Camera className="h-16 w-16 mx-auto mb-4 opacity-50" />
                     <p>Click "Start Camera" to begin</p>
                   </div>
                 </div>
-              ) : (
-                <div className="relative">
-                  <img
-                    ref={imgRef}
-                    alt="Hand Tracking Stream"
-                    className="w-full h-auto"
-                    onError={() => setError('Failed to load video stream. Make sure backend is running.')}
-                  />
-                  
-                  {/* Gesture Overlay */}
-                  {currentGesture && currentGesture !== 'None' && (
-                    <div className="absolute top-4 left-4 bg-black/70 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                      {currentGesture === 'Drawing' && <Pencil className="h-5 w-5 text-purple-400" />}
-                      {currentGesture === 'Erasing' && <Eraser className="h-5 w-5 text-gray-400" />}
-                      {currentGesture === 'Moving' && <Move className="h-5 w-5 text-blue-400" />}
-                      {currentGesture === 'Clearing' && <Trash2 className="h-5 w-5 text-red-400" />}
-                      {currentGesture === 'Analyzing' && <Search className="h-5 w-5 text-green-400" />}
-                      <span className="font-medium">{currentGesture}</span>
-                    </div>
-                  )}
+              )}
+              
+              {isStreaming && currentGesture && currentGesture !== 'None' && (
+                <div className="absolute top-4 left-4 bg-black/70 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                  {currentGesture === 'Drawing' && <Pencil className="h-5 w-5 text-purple-400" />}
+                  {currentGesture === 'Erasing' && <Eraser className="h-5 w-5 text-gray-400" />}
+                  {currentGesture === 'Moving' && <Move className="h-5 w-5 text-blue-400" />}
+                  {currentGesture === 'Clearing' && <Trash2 className="h-5 w-5 text-red-400" />}
+                  {currentGesture === 'Analyzing' && <Search className="h-5 w-5 text-green-400" />}
+                  <span className="font-medium">{currentGesture}</span>
                 </div>
               )}
             </div>
