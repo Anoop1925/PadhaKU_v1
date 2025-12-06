@@ -660,6 +660,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
+  const drawingCanvasRef = useRef<HTMLCanvasElement>(null) // Client-side drawing canvas
   const [isStreaming, setIsStreaming] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<string>('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -673,6 +674,8 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const lastProcessedFrameRef = useRef<string | null>(null)
   const isProcessingRef = useRef<boolean>(false)
   const processedImageRef = useRef<HTMLImageElement | null>(null)
+  const landmarksRef = useRef<any>(null) // Store latest hand landmarks from backend
+  const prevPointRef = useRef<{x: number, y: number} | null>(null) // Previous drawing point
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -752,14 +755,16 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       
       // RENDERING LOOP: Runs at 60 FPS for smooth display
       const renderFrame = () => {
-        if (!videoRef.current || !canvasRef.current) {
+        if (!videoRef.current || !canvasRef.current || !overlayCanvasRef.current) {
           return
         }
         
         const video = videoRef.current
         const canvas = canvasRef.current
         const ctx = canvas.getContext('2d')
-        if (!ctx) return
+        const overlayCanvas = overlayCanvasRef.current
+        const overlayCtx = overlayCanvas.getContext('2d')
+        if (!ctx || !overlayCtx) return
         
         // Save context state
         ctx.save()
@@ -773,6 +778,51 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         
         // Restore context
         ctx.restore()
+        
+        // Draw hand landmarks on overlay at 60 FPS
+        if (landmarksRef.current) {
+          overlayCtx.clearRect(0, 0, 950, 550)
+          const landmarks = landmarksRef.current
+          
+          // Draw hand connections
+          overlayCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)'
+          overlayCtx.lineWidth = 2
+          const connections = [
+            [0,1],[1,2],[2,3],[3,4], // Thumb
+            [0,5],[5,6],[6,7],[7,8], // Index
+            [0,9],[9,10],[10,11],[11,12], // Middle
+            [0,13],[13,14],[14,15],[15,16], // Ring
+            [0,17],[17,18],[18,19],[19,20], // Pinky
+            [5,9],[9,13],[13,17] // Palm
+          ]
+          
+          connections.forEach(([start, end]) => {
+            if (landmarks[start] && landmarks[end]) {
+              overlayCtx.beginPath()
+              overlayCtx.moveTo(950 - landmarks[start].x, landmarks[start].y)
+              overlayCtx.lineTo(950 - landmarks[end].x, landmarks[end].y)
+              overlayCtx.stroke()
+            }
+          })
+          
+          // Draw yellow circles on ALL fingertips
+          const fingertips = [4, 8, 12, 16, 20]
+          fingertips.forEach(id => {
+            if (landmarks[id]) {
+              const x = 950 - landmarks[id].x
+              const y = landmarks[id].y
+              overlayCtx.beginPath()
+              overlayCtx.arc(x, y, 12, 0, 2 * Math.PI)
+              overlayCtx.strokeStyle = 'rgba(0, 200, 255, 0.8)'
+              overlayCtx.lineWidth = 2
+              overlayCtx.stroke()
+              overlayCtx.beginPath()
+              overlayCtx.arc(x, y, 8, 0, 2 * Math.PI)
+              overlayCtx.fillStyle = 'rgba(0, 220, 255, 0.6)'
+              overlayCtx.fill()
+            }
+          })
+        }
         
         // Continue loop
         if (animationFrameRef.current !== null) {
@@ -814,11 +864,36 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
           })
           
           const result = await res.json()
-          if (result.success && result.frame) {
-            // Update the reusable image element's src
-            if (processedImageRef.current) {
-              processedImageRef.current.src = result.frame
+          if (result.success) {
+            // Update landmarks for 60 FPS rendering
+            if (result.landmarks && result.landmarks.length > 0) {
+              const landmarkMap: any = {}
+              result.landmarks.forEach((lm: any) => {
+                landmarkMap[lm.id] = { x: lm.x, y: lm.y }
+              })
+              landmarksRef.current = landmarkMap
+            } else {
+              landmarksRef.current = null
             }
+            
+            // Update drawing canvas if there's canvas data
+            if (result.canvas && drawingCanvasRef.current) {
+              const drawingCtx = drawingCanvasRef.current.getContext('2d')
+              if (drawingCtx && processedImageRef.current) {
+                processedImageRef.current.onload = () => {
+                  drawingCtx.clearRect(0, 0, 950, 550)
+                  drawingCtx.save()
+                  drawingCtx.scale(-1, 1)
+                  drawingCtx.translate(-950, 0)
+                  if (processedImageRef.current) {
+                    drawingCtx.drawImage(processedImageRef.current, 0, 0, 950, 550)
+                  }
+                  drawingCtx.restore()
+                }
+                processedImageRef.current.src = result.canvas
+              }
+            }
+            
             setCurrentGesture(result.gesture || 'None')
           }
         } catch (err) {
@@ -857,11 +932,17 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       lastProcessedFrameRef.current = null
       isProcessingRef.current = false
       processedImageRef.current = null
+      landmarksRef.current = null
+      prevPointRef.current = null
       
-      // Clear overlay canvas
+      // Clear all canvases
       if (overlayCanvasRef.current) {
         const overlayCtx = overlayCanvasRef.current.getContext('2d')
         overlayCtx?.clearRect(0, 0, 950, 550)
+      }
+      if (drawingCanvasRef.current) {
+        const drawingCtx = drawingCanvasRef.current.getContext('2d')
+        drawingCtx?.clearRect(0, 0, 950, 550)
       }
       
       // Stop browser camera
@@ -1585,7 +1666,16 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                 style={{ display: isStreaming ? 'block' : 'none' }}
               />
               
-              {/* Overlay canvas for processed frames - prevents popping */}
+              {/* Drawing canvas - persistent drawings from backend */}
+              <canvas 
+                ref={drawingCanvasRef} 
+                width={950} 
+                height={550} 
+                className="w-full h-auto absolute top-0 left-0 pointer-events-none"
+                style={{ display: isStreaming ? 'block' : 'none', opacity: 1 }}
+              />
+              
+              {/* Overlay canvas for hand landmarks at 60 FPS */}
               <canvas 
                 ref={overlayCanvasRef} 
                 width={950} 

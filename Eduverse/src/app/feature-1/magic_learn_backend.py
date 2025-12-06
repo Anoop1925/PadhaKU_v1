@@ -538,14 +538,26 @@ def process_browser_frame():
         blended = cv2.bitwise_and(blended, imgInv)
         final_img = cv2.bitwise_or(blended, imgCanvas)
         
-        # Encode
-        _, buffer = cv2.imencode('.jpg', final_img, [cv2.IMWRITE_JPEG_QUALITY, 85])
-        frame_base64 = base64.b64encode(buffer).decode('utf-8')
+        # Encode canvas only (for drawing persistence)
+        _, canvas_buffer = cv2.imencode('.jpg', imgCanvas, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        canvas_base64 = base64.b64encode(canvas_buffer).decode('utf-8')
+        
+        # Convert landmarks to JSON format for client-side rendering
+        landmarks_json = []
+        if landmark_list:
+            for lm in landmark_list:
+                landmarks_json.append({
+                    'id': lm[0],
+                    'x': lm[1],
+                    'y': lm[2]
+                })
         
         return jsonify({
             'success': True,
-            'frame': f'data:image/jpeg;base64,{frame_base64}',
-            'gesture': current_gesture
+            'canvas': f'data:image/jpeg;base64,{canvas_base64}',
+            'gesture': current_gesture,
+            'landmarks': landmarks_json,
+            'fingers': fingers if len(fingers) == 5 else []
         })
         
     except Exception as e:
