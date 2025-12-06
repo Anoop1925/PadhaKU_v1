@@ -581,6 +581,33 @@ Provide your ONE PARAGRAPH real-life example explanation:"""
 # ==================== HEALTH CHECK ====================
 
 @app.route('/api/health', methods=['GET'])
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint - API documentation"""
+    return jsonify({
+        'service': 'Magic Learn Backend API',
+        'status': 'running',
+        'version': '1.0.0',
+        'features': ['DrawInAir', 'Image Reader', 'Plot Crafter'],
+        'endpoints': {
+            'health': '/health',
+            'drawinair': {
+                'start': 'POST /api/drawinair/start',
+                'stop': 'POST /api/drawinair/stop',
+                'video_feed': 'GET /api/drawinair/video-feed',
+                'gesture': 'GET /api/drawinair/gesture',
+                'analyze': 'POST /api/drawinair/analyze',
+                'clear': 'POST /api/drawinair/clear'
+            },
+            'image_reader': {
+                'analyze': 'POST /api/image-reader/analyze'
+            },
+            'plot_crafter': {
+                'generate': 'POST /api/plot-crafter/generate'
+            }
+        }
+    })
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
