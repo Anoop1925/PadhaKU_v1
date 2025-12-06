@@ -751,6 +751,11 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
           for (const landmarks of results.multiHandLandmarks) {
+            // Mirror the overlay canvas to match video
+            overlayCtx.save()
+            overlayCtx.scale(-1, 1)
+            overlayCtx.translate(-950, 0)
+            
             // Draw hand skeleton
             drawConnectors(overlayCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 })
             drawLandmarks(overlayCtx, landmarks, { color: '#FF0000', lineWidth: 1, radius: 3 })
@@ -767,12 +772,14 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
               overlayCtx.lineWidth = 2
               overlayCtx.stroke()
             })
+            
+            overlayCtx.restore()
 
-            // Gesture detection
+            // Gesture detection (use mirrored coordinates for drawing)
             const fingers = [0, 0, 0, 0, 0]
             
-            // Thumb
-            if (landmarks[4].x < landmarks[3].x) fingers[0] = 1
+            // Thumb (flip logic for mirroring)
+            if (landmarks[4].x > landmarks[3].x) fingers[0] = 1
             
             // Other fingers
             for (let i = 1; i <= 4; i++) {
@@ -784,10 +791,10 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
             const indexTip = landmarks[8]
             const middleTip = landmarks[12]
 
-            // Drawing: Thumb + Index
+            // Drawing: Thumb + Index (mirror X coordinate)
             if (fingers[0] === 1 && fingers[1] === 1 && fingers[2] === 0) {
               setCurrentGesture('Drawing')
-              const x = indexTip.x * 950
+              const x = (1 - indexTip.x) * 950  // Mirror X
               const y = indexTip.y * 550
               
               if (prevPointRef.current) {
@@ -800,10 +807,10 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
               }
               prevPointRef.current = { x, y }
             }
-            // Erasing: Thumb + Middle
+            // Erasing: Thumb + Middle (mirror X coordinate)
             else if (fingers[0] === 1 && fingers[2] === 1 && fingers[1] === 0) {
               setCurrentGesture('Erasing')
-              const x = middleTip.x * 950
+              const x = (1 - middleTip.x) * 950  // Mirror X
               const y = middleTip.y * 550
               
               if (prevPointRef.current) {
