@@ -720,16 +720,27 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         video: { width: 950, height: 550, facingMode: 'user' } 
       })
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.play()
+      if (!videoRef.current || !canvasRef.current) {
+        throw new Error('Video or canvas ref not available')
       }
+      
+      videoRef.current.srcObject = stream
+      
+      // Wait for video to be ready before starting frame processing
+      await new Promise<void>((resolve) => {
+        if (videoRef.current) {
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play()
+            resolve()
+          }
+        }
+      })
       
       setIsStreaming(true)
       setError('')
       
       // Start sending frames to backend for processing
-      frameIntervalRef.current = setInterval(async () => {
+      const processFrame = async () => {
         if (!videoRef.current || !canvasRef.current) return
         
         const video = videoRef.current
@@ -737,9 +748,13 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         const ctx = canvas.getContext('2d')
         if (!ctx) return
         
+        // Ensure canvas dimensions match
+        if (canvas.width !== 950 || canvas.height !== 550) {
+          canvas.width = 950
+          canvas.height = 550
+        }
+        
         // Draw current video frame to canvas
-        canvas.width = 950
-        canvas.height = 550
         ctx.drawImage(video, 0, 0, 950, 550)
         
         // Get frame as base64
@@ -758,7 +773,12 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
             // Display processed frame with hand tracking
             const img = new window.Image()
             img.onload = () => {
-              ctx.drawImage(img, 0, 0, 950, 550)
+              if (canvasRef.current) {
+                const ctx = canvasRef.current.getContext('2d')
+                if (ctx) {
+                  ctx.drawImage(img, 0, 0, 950, 550)
+                }
+              }
             }
             img.src = result.frame
             setCurrentGesture(result.gesture || 'None')
@@ -766,7 +786,10 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         } catch (err) {
           console.error('Frame processing error:', err)
         }
-      }, 100) // Process at ~10 FPS
+      }
+      
+      // Start the frame processing loop
+      frameIntervalRef.current = setInterval(processFrame, 100) // Process at ~10 FPS
       
     } catch (err: any) {
       console.error('Error starting camera:', err)
