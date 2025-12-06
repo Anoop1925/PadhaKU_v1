@@ -426,6 +426,9 @@ def process_browser_frame():
         
         img = cv2.resize(img, (950, 550))
         
+        # Mirror image horizontally (flip left-right for natural drawing)
+        img = cv2.flip(img, 1)
+        
         if imgCanvas is None:
             imgCanvas = np.zeros((550, 950, 3), dtype=np.uint8)
         
@@ -476,11 +479,13 @@ def process_browser_frame():
                 else:
                     fingers.append(0)
             
-            # Draw finger tips
-            for i in range(5):
-                if fingers[i] == 1:
-                    cx, cy = landmark_list[(i + 1) * 4][1], landmark_list[(i + 1) * 4][2]
-                    cv2.circle(img, (cx, cy), 5, (255, 0, 255), 1)
+            # Draw yellow circles on ALL fingertips (whether up or down)
+            fingertip_ids = [4, 8, 12, 16, 20]  # Thumb, Index, Middle, Ring, Pinky
+            for tip_id in fingertip_ids:
+                cx, cy = landmark_list[tip_id][1], landmark_list[tip_id][2]
+                # Yellow circle with slight transparency effect
+                cv2.circle(img, (cx, cy), 12, (0, 200, 255), 2)  # Yellow outer ring
+                cv2.circle(img, (cx, cy), 8, (0, 220, 255), -1)  # Yellow filled center
         
         # GESTURE HANDLING
         if len(fingers) == 5:

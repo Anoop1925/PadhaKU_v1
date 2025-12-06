@@ -659,6 +659,7 @@ function AboutContent({ theme }: { theme: 'light' | 'dark' }) {
 function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<string>('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -734,6 +735,10 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       // Create reusable image element for processed frames
       if (!processedImageRef.current) {
         processedImageRef.current = document.createElement('img')
+        // Preload images asynchronously to prevent popping
+        processedImageRef.current.onload = () => {
+          // Image is ready, renderFrame will draw it
+        }
       }
       
       // RENDERING LOOP: Runs at 60 FPS for smooth display
@@ -747,20 +752,18 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         const ctx = canvas.getContext('2d')
         if (!ctx) return
         
-        // Draw the raw video feed first
+        // Save context state
+        ctx.save()
+        
+        // Mirror the canvas horizontally (flip left-right)
+        ctx.scale(-1, 1)
+        ctx.translate(-950, 0)
+        
+        // Always draw the raw video feed first (mirrored)
         ctx.drawImage(video, 0, 0, 950, 550)
         
-        // If we have a processed frame, draw it on top
-        if (lastProcessedFrameRef.current && processedImageRef.current) {
-          // Update image src only if it changed
-          if (processedImageRef.current.src !== lastProcessedFrameRef.current) {
-            processedImageRef.current.src = lastProcessedFrameRef.current
-          }
-          // Draw if image is loaded
-          if (processedImageRef.current.complete && processedImageRef.current.naturalWidth > 0) {
-            ctx.drawImage(processedImageRef.current, 0, 0, 950, 550)
-          }
-        }
+        // Restore context
+        ctx.restore()
         
         // Continue loop
         if (animationFrameRef.current !== null) {
@@ -770,7 +773,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       
       // PROCESSING LOOP: Sends frames to backend at 10 FPS
       const processFrame = async () => {
-        if (isProcessingRef.current || !videoRef.current || !canvasRef.current) {
+        if (isProcessingRef.current || !videoRef.current || !overlayCanvasRef.current) {
           return
         }
         
@@ -779,14 +782,20 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         try {
           const video = videoRef.current
           
-          // Create temp canvas to capture frame
+          // Create temp canvas to capture frame (flip it before sending to backend)
           const tempCanvas = document.createElement('canvas')
           tempCanvas.width = 950
           tempCanvas.height = 550
           const tempCtx = tempCanvas.getContext('2d')
           if (!tempCtx) return
           
+          // Send flipped frame to backend (backend will process it flipped)
+          tempCtx.save()
+          tempCtx.scale(-1, 1)
+          tempCtx.translate(-950, 0)
           tempCtx.drawImage(video, 0, 0, 950, 550)
+          tempCtx.restore()
+          
           const frameData = tempCanvas.toDataURL('image/jpeg', 0.8)
           
           const res = await fetch(`${BACKEND_URL}/api/drawinair/process-frame`, {
@@ -797,7 +806,21 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
           
           const result = await res.json()
           if (result.success && result.frame) {
-            lastProcessedFrameRef.current = result.frame
+            // Draw processed frame on overlay canvas
+            const overlayCanvas = overlayCanvasRef.current
+            const overlayCtx = overlayCanvas?.getContext('2d')
+            if (overlayCtx) {
+              const img = new Image()
+              img.onload = () => {
+                overlayCtx.clearRect(0, 0, 950, 550)
+                overlayCtx.save()
+                overlayCtx.scale(-1, 1)
+                overlayCtx.translate(-950, 0)
+                overlayCtx.drawImage(img, 0, 0, 950, 550)
+                overlayCtx.restore()
+              }
+              img.src = result.frame
+            }
             setCurrentGesture(result.gesture || 'None')
           }
         } catch (err) {
@@ -836,6 +859,12 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       lastProcessedFrameRef.current = null
       isProcessingRef.current = false
       processedImageRef.current = null
+      
+      // Clear overlay canvas
+      if (overlayCanvasRef.current) {
+        const overlayCtx = overlayCanvasRef.current.getContext('2d')
+        overlayCtx?.clearRect(0, 0, 950, 550)
+      }
       
       // Stop browser camera
       if (videoRef.current?.srcObject) {
@@ -1548,12 +1577,23 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
             <div className="relative bg-gray-900 rounded-lg overflow-hidden">
               <video ref={videoRef} className="hidden" autoPlay playsInline muted />
+              
+              {/* Video canvas - smooth 60 FPS */}
               <canvas 
                 ref={canvasRef} 
                 width={950} 
                 height={550} 
                 className="w-full h-auto"
                 style={{ display: isStreaming ? 'block' : 'none' }}
+              />
+              
+              {/* Overlay canvas for processed frames - prevents popping */}
+              <canvas 
+                ref={overlayCanvasRef} 
+                width={950} 
+                height={550} 
+                className="w-full h-auto absolute top-0 left-0 pointer-events-none"
+                style={{ display: isStreaming ? 'block' : 'none', opacity: 0.9 }}
               />
               
               {!isStreaming && (
