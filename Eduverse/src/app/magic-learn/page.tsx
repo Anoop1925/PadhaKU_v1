@@ -675,6 +675,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const animationFrameRef = useRef<number | null>(null)
   const handsRef = useRef<Hands | null>(null)
   const prevPointRef = useRef<{ x: number; y: number } | null>(null)
+  const isStreamingRef = useRef<boolean>(false)
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -721,6 +722,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       videoRef.current.srcObject = stream
       await videoRef.current.play()
       setIsStreaming(true)
+      isStreamingRef.current = true
 
       // Initialize CLIENT-SIDE MediaPipe Hands (NO BACKEND DELAYS!)
       const hands = new Hands({
@@ -835,7 +837,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
       // Process at 60 FPS (INSTANT - NO NETWORK!)
       const processFrame = async () => {
-        if (!videoRef.current || !canvasRef.current) return
+        if (!isStreamingRef.current || !videoRef.current || !canvasRef.current) return
 
         const canvas = canvasRef.current
         const ctx = canvas.getContext('2d')
@@ -853,9 +855,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
           await handsRef.current.send({ image: videoRef.current })
         }
 
-        if (isStreaming) {
-          animationFrameRef.current = requestAnimationFrame(processFrame)
-        }
+        animationFrameRef.current = requestAnimationFrame(processFrame)
       }
 
       processFrame()
@@ -864,12 +864,14 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       console.error('Camera error:', err)
       setError(err.message || 'Failed to start camera')
       setIsStreaming(false)
+      isStreamingRef.current = false
     }
   }
 
   const stopCamera = async () => {
     try {
       setIsStreaming(false)
+      isStreamingRef.current = false
       
       // Cancel animation frame
       if (animationFrameRef.current) {
