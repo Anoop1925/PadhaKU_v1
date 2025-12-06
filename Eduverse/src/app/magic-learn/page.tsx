@@ -703,38 +703,71 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       setError('')
       setIsStreaming(false)
       
+      console.log('Step 1: Initializing backend...')
+      
       // Initialize backend (no camera needed on server)
       const response = await fetch(`${BACKEND_URL}/api/drawinair/start`, {
         method: 'POST'
       })
       
       const data = await response.json()
+      console.log('Backend response:', data)
       
       if (!data.success) {
         setError(data.error || 'Failed to initialize backend')
         return
       }
       
+      console.log('Step 2: Requesting camera access...')
+      
       // Get browser camera
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { width: 950, height: 550, facingMode: 'user' } 
       })
       
-      if (!videoRef.current || !canvasRef.current) {
-        throw new Error('Video or canvas ref not available')
+      console.log('Step 3: Camera access granted, setting up video element...')
+      
+      if (!videoRef.current) {
+        console.error('Video ref not available')
+        throw new Error('Video element not found. Please try again.')
+      }
+      
+      if (!canvasRef.current) {
+        console.error('Canvas ref not available')
+        throw new Error('Canvas element not found. Please try again.')
       }
       
       videoRef.current.srcObject = stream
       
+      console.log('Step 4: Waiting for video to load...')
+      
       // Wait for video to be ready before starting frame processing
-      await new Promise<void>((resolve) => {
-        if (videoRef.current) {
-          videoRef.current.onloadedmetadata = () => {
-            videoRef.current?.play()
-            resolve()
-          }
+      await new Promise<void>((resolve, reject) => {
+        if (!videoRef.current) {
+          reject(new Error('Video ref lost'))
+          return
         }
+        
+        const video = videoRef.current
+        
+        video.onloadedmetadata = () => {
+          console.log('Video metadata loaded, starting playback...')
+          video.play()
+            .then(() => {
+              console.log('Video playing successfully')
+              resolve()
+            })
+            .catch((err) => {
+              console.error('Video play error:', err)
+              reject(err)
+            })
+        }
+        
+        // Timeout after 5 seconds
+        setTimeout(() => reject(new Error('Video loading timeout')), 5000)
       })
+      
+      console.log('Step 5: Starting frame processing...')
       
       setIsStreaming(true)
       setError('')
@@ -791,14 +824,31 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       // Start the frame processing loop
       frameIntervalRef.current = setInterval(processFrame, 100) // Process at ~10 FPS
       
+      console.log('DrawInAir camera started successfully!')
+      
     } catch (err: any) {
       console.error('Error starting camera:', err)
+      console.error('Error details:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      })
+      
       if (err.name === 'NotAllowedError') {
         setError('Camera permission denied. Please allow camera access and try again.')
       } else if (err.name === 'NotFoundError') {
         setError('No camera found. Please connect a camera and try again.')
+      } else if (err.message) {
+        setError(`Camera error: ${err.message}`)
       } else {
         setError('Failed to access camera. Please check your browser permissions.')
+      }
+      
+      // Clean up on error
+      setIsStreaming(false)
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current)
+        frameIntervalRef.current = null
       }
     }
   }
