@@ -8,6 +8,9 @@ import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import Image from 'next/image'
 
+// Railway backend URL
+const BACKEND_URL = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'https://magic-learn-production.up.railway.app';
+
 export default function MagicLearnPage() {
   const [activeTab, setActiveTab] = useState<'about' | 'drawinair' | 'imagereader' | 'plotcrafter'>('about')
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
@@ -670,7 +673,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
     const interval = setInterval(async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/drawinair/gesture')
+        const response = await fetch(`${BACKEND_URL}/api/drawinair/gesture`)
         const data = await response.json()
         if (data.success) {
           const gesture = data.gesture
@@ -702,7 +705,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
       
-      const healthCheck = await fetch('http://localhost:5000/api/health', {
+      const healthCheck = await fetch(`${BACKEND_URL}/health`, {
         signal: controller.signal
       }).catch(() => null)
       
@@ -714,7 +717,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       }
       
       // Start backend camera
-      const response = await fetch('http://localhost:5000/api/drawinair/start', {
+      const response = await fetch(`${BACKEND_URL}/api/drawinair/start`, {
         method: 'POST'
       })
       
@@ -735,7 +738,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
   const stopCamera = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/drawinair/stop', {
+      const response = await fetch(`${BACKEND_URL}/api/drawinair/stop`, {
         method: 'POST'
       })
       
@@ -761,7 +764,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
     
     try {
       console.log('📤 Sending analysis request to backend...')
-      const response = await fetch('http://localhost:5000/api/drawinair/analyze', {
+      const response = await fetch(`${BACKEND_URL}/api/drawinair/analyze`, {
         method: 'POST'
       })
 
@@ -785,7 +788,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
   const clearCanvas = async () => {
     try {
-      await fetch('http://localhost:5000/api/drawinair/clear', {
+      await fetch(`${BACKEND_URL}/api/drawinair/clear`, {
         method: 'POST'
       })
       setAnalysisResult('')
@@ -1452,7 +1455,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                 <div className="relative">
                   <img
                     ref={imgRef}
-                    src="http://localhost:5000/api/drawinair/video-feed"
+                    src={`${BACKEND_URL}/api/drawinair/video-feed`}
                     alt="Hand Tracking Stream"
                     className="w-full h-auto"
                     onError={() => setError('Failed to load video stream. Make sure backend is running on port 5000.')}
@@ -1737,7 +1740,7 @@ function ImageReaderTab({ theme }: { theme: 'light' | 'dark' }) {
       const base64Data = uploadedImage.split(',')[1]
       const mimeType = uploadedImage.split(':')[1].split(';')[0]
 
-      const response = await fetch('http://localhost:5000/api/image-reader/analyze', {
+      const response = await fetch(`${BACKEND_URL}/api/image-reader/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2336,7 +2339,7 @@ function PlotCrafterTab({ theme }: { theme: 'light' | 'dark' }) {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
         
-        const response = await fetch('http://localhost:5000/api/plot-crafter/generate', {
+        const response = await fetch(`${BACKEND_URL}/api/plot-crafter/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ theme: educationalTopic, educational: true }),
