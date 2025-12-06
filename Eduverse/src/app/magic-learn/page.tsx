@@ -759,8 +759,11 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       setIsStreaming(true)
       setError('')
       
-      // Start sending frames to backend for processing
-      const processFrame = async () => {
+      let isProcessing = false
+      let lastProcessedFrame: string | null = null
+      
+      // Continuous rendering loop using requestAnimationFrame for smooth display
+      const renderLoop = () => {
         if (!videoRef.current || !canvasRef.current) return
         
         const video = videoRef.current
@@ -768,20 +771,45 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         const ctx = canvas.getContext('2d')
         if (!ctx) return
         
-        // Ensure canvas dimensions match
-        if (canvas.width !== 950 || canvas.height !== 550) {
-          canvas.width = 950
-          canvas.height = 550
+        // Always draw the latest frame (either processed or raw video)
+        if (lastProcessedFrame) {
+          // Draw the processed frame with hand tracking
+          const img = new window.Image()
+          img.src = lastProcessedFrame
+          ctx.drawImage(img, 0, 0, 950, 550)
+        } else {
+          // Draw raw video while waiting for first processed frame
+          ctx.drawImage(video, 0, 0, 950, 550)
         }
         
-        // Draw current video frame to canvas
-        ctx.drawImage(video, 0, 0, 950, 550)
+        // Continue the loop
+        if (frameIntervalRef.current !== null) {
+          requestAnimationFrame(renderLoop)
+        }
+      }
+      
+      // Start the rendering loop
+      requestAnimationFrame(renderLoop)
+      
+      // Separate loop for sending frames to backend for processing
+      const processFrame = async () => {
+        if (isProcessing || !videoRef.current || !canvasRef.current) return
         
-        // Get frame as base64
-        const frameData = canvas.toDataURL('image/jpeg', 0.8)
+        isProcessing = true
         
-        // Send to backend for processing
         try {
+          const video = videoRef.current
+          const tempCanvas = document.createElement('canvas')
+          tempCanvas.width = 950
+          tempCanvas.height = 550
+          const tempCtx = tempCanvas.getContext('2d')
+          if (!tempCtx) return
+          
+          // Capture current video frame
+          tempCtx.drawImage(video, 0, 0, 950, 550)
+          const frameData = tempCanvas.toDataURL('image/jpeg', 0.8)
+          
+          // Send to backend for processing
           const processResponse = await fetch(`${BACKEND_URL}/api/drawinair/process-frame`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -790,26 +818,18 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
           
           const result = await processResponse.json()
           if (result.success && result.frame) {
-            // Display processed frame with hand tracking
-            const img = new window.Image()
-            img.onload = () => {
-              if (canvasRef.current) {
-                const ctx = canvasRef.current.getContext('2d')
-                if (ctx) {
-                  ctx.drawImage(img, 0, 0, 950, 550)
-                }
-              }
-            }
-            img.src = result.frame
+            lastProcessedFrame = result.frame
             setCurrentGesture(result.gesture || 'None')
           }
         } catch (err) {
           console.error('Frame processing error:', err)
+        } finally {
+          isProcessing = false
         }
       }
       
-      // Start the frame processing loop
-      frameIntervalRef.current = setInterval(processFrame, 100) // Process at ~10 FPS
+      // Process frames at ~10 FPS
+      frameIntervalRef.current = setInterval(processFrame, 100) as any
       
       console.log('DrawInAir camera started successfully!')
       
