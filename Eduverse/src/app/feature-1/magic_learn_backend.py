@@ -36,6 +36,7 @@ DRAWINAIR_API_KEYS = [
     os.getenv('DRAWINAIR_API_KEY_3'),
     os.getenv('DRAWINAIR_API_KEY_4'),
     os.getenv('DRAWINAIR_API_KEY_5'),
+    os.getenv('DRAWINAIR_API_KEY_6'),
 ]
 IMAGE_READER_API_KEYS = [
     os.getenv('IMAGE_READER_API_KEY'),
@@ -787,25 +788,52 @@ def analyze_image():
         # Decode base64 image
         image_bytes = base64.b64decode(image_data)
         
-        # Create image parts for Gemini (EXACTLY like app.py)
+        # Create image parts for Gemini
         image_parts = [{
             "mime_type": mime_type,
             "data": image_bytes
         }]
         
-        # Configure Gemini with Image Reader API key
-        genai.configure(api_key=IMAGE_READER_API_KEY)
-        
-        # Analyze with Gemini 2.5 Flash Lite
-        model = genai.GenerativeModel('gemini-2.5-flash-lite')
-        prompt = f"Analyze the image and provide details. {instructions if instructions else 'Provide a comprehensive analysis of what you see in the image.'}"
-        
-        response = model.generate_content([prompt, image_parts[0]])
-        
-        return jsonify({
-            'success': True,
-            'result': response.text
-        })
+        # Try with current API key, rotate on failure
+        max_retries = len(IMAGE_READER_API_KEYS)
+        for attempt in range(max_retries):
+            try:
+                api_key, key_idx = get_next_api_key('image_reader')
+                genai.configure(api_key=api_key)
+                
+                print(f"🔑 Using Image Reader API key #{key_idx + 1}")
+                
+                # Analyze with Gemini 2.5 Flash Lite
+                model = genai.GenerativeModel('gemini-2.5-flash-lite')
+                prompt = f"Analyze the image and provide details. {instructions if instructions else 'Provide a comprehensive analysis of what you see in the image.'}"
+                
+                response = model.generate_content([prompt, image_parts[0]])
+                
+                return jsonify({
+                    'success': True,
+                    'result': response.text,
+                    'api_key_used': key_idx + 1
+                })
+                
+            except Exception as e:
+                error_msg = str(e).lower()
+                
+                # Check if it's a quota/rate limit error
+                if 'quota' in error_msg or 'rate' in error_msg or 'limit' in error_msg or 'exhausted' in error_msg:
+                    print(f"⚠️ Image Reader API key #{key_idx + 1} exhausted: {e}")
+                    rotate_api_key('image_reader')
+                    
+                    if attempt < max_retries - 1:
+                        print(f"🔄 Retrying with next API key...")
+                        continue
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'error': 'All API keys exhausted. Please try again later.'
+                        }), 429
+                else:
+                    # Not a quota error, return immediately
+                    raise e
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -829,12 +857,18 @@ def generate_plot():
         if not theme:
             return jsonify({'error': 'No theme provided'}), 400
         
-        # Configure Gemini with Plot Crafter API key
-        genai.configure(api_key=PLOT_CRAFTER_API_KEY)
-        
-        # Generate concise explanation with Gemini 2.5 Flash Lite
-        model = genai.GenerativeModel('gemini-2.5-flash-lite')
-        prompt = f"""Explain the concept "{theme}" using a SINGLE real-life example in simple, interactive language.
+        # Try with current API key, rotate on failure
+        max_retries = len(PLOT_CRAFTER_API_KEYS)
+        for attempt in range(max_retries):
+            try:
+                api_key, key_idx = get_next_api_key('plot_crafter')
+                genai.configure(api_key=api_key)
+                
+                print(f"🔑 Using Plot Crafter API key #{key_idx + 1}")
+                
+                # Generate concise explanation with Gemini 2.5 Flash Lite
+                model = genai.GenerativeModel('gemini-2.5-flash-lite')
+                prompt = f"""Explain the concept "{theme}" using a SINGLE real-life example in simple, interactive language.
 
 CRITICAL REQUIREMENTS:
 - Use ONLY ONE PARAGRAPH (maximum 4-5 sentences)
@@ -850,12 +884,31 @@ Topic: {theme}
 
 Provide your ONE PARAGRAPH real-life example explanation:"""
         
-        response = model.generate_content([prompt])
+                response = model.generate_content([prompt])
         
-        return jsonify({
-            'success': True,
-            'result': response.text
-        })
+                return jsonify({
+                    'success': True,
+                    'result': response.text,
+                    'api_key_used': f"PLOT_CRAFTER_API_KEY_{key_idx + 1 if key_idx > 0 else ''}"
+                })
+                
+            except Exception as e:
+                error_msg = str(e).lower()
+                # Check if this is a quota/rate limit error
+                if any(word in error_msg for word in ['quota', 'rate', 'limit', 'exhausted']):
+                    print(f"⚠️ Plot Crafter API key #{key_idx + 1} exhausted: {e}")
+                    rotate_api_key('plot_crafter')
+                    if attempt < max_retries - 1:
+                        print(f"🔄 Retrying with next Plot Crafter API key...")
+                        continue
+                    else:
+                        print("❌ All Plot Crafter API keys exhausted!")
+                        return jsonify({'error': 'All API keys exhausted. Please try again later.'}), 429
+                else:
+                    # Non-quota error, don't rotate
+                    raise e
+        
+        return jsonify({'error': 'Failed to generate content'}), 500
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
