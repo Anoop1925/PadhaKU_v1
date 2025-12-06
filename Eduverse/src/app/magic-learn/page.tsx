@@ -735,9 +735,18 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       // Create reusable image element for processed frames
       if (!processedImageRef.current) {
         processedImageRef.current = document.createElement('img')
-        // Preload images asynchronously to prevent popping
+        // Setup onload handler once
         processedImageRef.current.onload = () => {
-          // Image is ready, renderFrame will draw it
+          const overlayCanvas = overlayCanvasRef.current
+          const overlayCtx = overlayCanvas?.getContext('2d')
+          if (overlayCtx && processedImageRef.current) {
+            overlayCtx.clearRect(0, 0, 950, 550)
+            overlayCtx.save()
+            overlayCtx.scale(-1, 1)
+            overlayCtx.translate(-950, 0)
+            overlayCtx.drawImage(processedImageRef.current, 0, 0, 950, 550)
+            overlayCtx.restore()
+          }
         }
       }
       
@@ -806,20 +815,9 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
           
           const result = await res.json()
           if (result.success && result.frame) {
-            // Draw processed frame on overlay canvas
-            const overlayCanvas = overlayCanvasRef.current
-            const overlayCtx = overlayCanvas?.getContext('2d')
-            if (overlayCtx) {
-              const img = new Image()
-              img.onload = () => {
-                overlayCtx.clearRect(0, 0, 950, 550)
-                overlayCtx.save()
-                overlayCtx.scale(-1, 1)
-                overlayCtx.translate(-950, 0)
-                overlayCtx.drawImage(img, 0, 0, 950, 550)
-                overlayCtx.restore()
-              }
-              img.src = result.frame
+            // Update the reusable image element's src
+            if (processedImageRef.current) {
+              processedImageRef.current.src = result.frame
             }
             setCurrentGesture(result.gesture || 'None')
           }
