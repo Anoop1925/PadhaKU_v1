@@ -609,18 +609,32 @@ def get_current_gesture():
 @app.route('/api/drawinair/analyze', methods=['POST'])
 def analyze_drawing():
     """
-    Analyze drawn content with Gemini AI (EXACTLY like app.py)
-    Uses gemini-2.5-flash-lite for better performance and higher limits
+    Analyze drawn content with Gemini AI
+    Now accepts image from frontend (client-side drawing canvas)
     """
-    global imgCanvas, analysis_result
+    global analysis_result
     
     try:
-        if imgCanvas is None:
-            return jsonify({'success': False, 'error': 'No canvas available'}), 400
+        data = request.get_json()
         
-        # Convert canvas to PIL Image (EXACTLY like app.py)
-        imgCanvas_rgb = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2RGB)
-        pil_image = Image.fromarray(imgCanvas_rgb)
+        if not data or 'image' not in data:
+            return jsonify({'success': False, 'error': 'No image provided'}), 400
+        
+        # Decode base64 image from frontend
+        image_data = data['image']
+        if ',' in image_data:
+            image_data = image_data.split(',')[1]
+        
+        image_bytes = base64.b64decode(image_data)
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            return jsonify({'success': False, 'error': 'Failed to decode image'}), 400
+        
+        # Convert to PIL Image
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(img_rgb)
         
         # Configure Gemini with DrawInAir API key
         genai.configure(api_key=DRAWINAIR_API_KEY)
@@ -645,6 +659,9 @@ def analyze_drawing():
         })
         
     except Exception as e:
+        print(f"Analysis error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/drawinair/clear', methods=['POST'])

@@ -790,9 +790,19 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
             const indexTip = landmarks[8]
             const middleTip = landmarks[12]
+            const pinkyTip = landmarks[20]
 
+            // Analyze: Index + Middle (NO thumb)
+            if (fingers[0] === 0 && fingers[1] === 1 && fingers[2] === 1 && fingers[3] === 0 && fingers[4] === 0) {
+              setCurrentGesture('Analyzing')
+              prevPointRef.current = null
+              // Trigger analysis
+              if (lastGestureRef.current !== 'Analyzing') {
+                analyzeDrawing()
+              }
+            }
             // Drawing: Thumb + Index (mirror X coordinate)
-            if (fingers[0] === 1 && fingers[1] === 1 && fingers[2] === 0) {
+            else if (fingers[0] === 1 && fingers[1] === 1 && fingers[2] === 0) {
               setCurrentGesture('Drawing')
               const x = (1 - indexTip.x) * 950  // Mirror X
               const y = indexTip.y * 550
@@ -833,6 +843,8 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
               setCurrentGesture('None')
               prevPointRef.current = null
             }
+            
+            lastGestureRef.current = currentGesture || 'None'
           }
         } else {
           setCurrentGesture('None')
@@ -921,15 +933,22 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   }
 
   const analyzeDrawing = async () => {
-    if (isAnalyzing) return
+    if (isAnalyzing || !drawingCanvasRef.current) return
 
     setIsAnalyzing(true)
     setError('')
     
     try {
-      console.log('📤 Sending analysis request to backend...')
+      console.log('📤 Sending drawing for analysis...')
+      
+      // Get drawing canvas as base64
+      const drawingCanvas = drawingCanvasRef.current
+      const drawingData = drawingCanvas.toDataURL('image/png')
+      
       const response = await fetch(`${BACKEND_URL}/api/drawinair/analyze`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: drawingData })
       })
 
       const data = await response.json()
