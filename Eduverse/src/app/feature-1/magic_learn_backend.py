@@ -404,15 +404,15 @@ def start_drawinair():
 
 @app.route('/api/drawinair/process-frame', methods=['POST'])
 def process_browser_frame():
-    """Process a video frame from browser camera with hand tracking"""
-    global imgCanvas, mphands, current_gesture, p1, p2, gesture_lock_mode, gesture_lock_counter
+    """Process video frame with FULL hand gesture detection (like original)"""
+    global imgCanvas, mphands, current_gesture, p1, p2
     
     try:
         data = request.json
         if not data or 'frame' not in data:
             return jsonify({'success': False, 'error': 'No frame data provided'}), 400
         
-        # Decode base64 frame from browser
+        # Decode base64 frame
         frame_data = data['frame']
         if ',' in frame_data:
             frame_data = frame_data.split(',')[1]
@@ -424,40 +424,108 @@ def process_browser_frame():
         if img is None:
             return jsonify({'success': False, 'error': 'Failed to decode frame'}), 400
         
-        # Resize to match expected dimensions
         img = cv2.resize(img, (950, 550))
         
-        # Initialize canvas if needed
         if imgCanvas is None:
             imgCanvas = np.zeros((550, 950, 3), dtype=np.uint8)
         
-        # Process with MediaPipe (reuse existing hand tracking logic)
+        # Process with MediaPipe
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         result = mphands.process(imgRGB)
         
         landmark_list = []
+        hand_label = None
+        
         if result.multi_hand_landmarks:
+            if result.multi_handedness:
+                hand_label = result.multi_handedness[0].classification[0].label
+            
             for hand_lms in result.multi_hand_landmarks:
+                # Draw landmarks on image
+                drawing_utils.draw_landmarks(
+                    image=img,
+                    landmark_list=hand_lms,
+                    connections=hands.HAND_CONNECTIONS
+                )
+                
+                # Get landmark coordinates
                 for id, lm in enumerate(hand_lms.landmark):
                     h, w, c = img.shape
                     cx, cy = int(lm.x * w), int(lm.y * h)
                     landmark_list.append([id, cx, cy])
         
-        # Simple gesture detection (thumb + index = drawing)
-        if len(landmark_list) >= 21:
-            # Basic drawing mode
-            cx, cy = landmark_list[8][1], landmark_list[8][2]
-            if p1 == 0 and p2 == 0:
-                p1, p2 = cx, cy
-            else:
-                cv2.line(imgCanvas, (p1, p2), (cx, cy), (255, 0, 255), 6)
-            p1, p2 = cx, cy
-            current_gesture = "Drawing"
-        else:
-            p1, p2 = 0, 0
-            current_gesture = "None"
+        # FULL GESTURE DETECTION (from original)
+        fingers = []
+        if landmark_list:
+            # Thumb detection (different for left/right hand)
+            if hand_label == "Right":
+                if landmark_list[4][1] < landmark_list[3][1]:
+                    fingers.append(1)
+                else:
+                    fingers.append(0)
+            else:  # Left hand
+                if landmark_list[4][1] > landmark_list[3][1]:
+                    fingers.append(1)
+                else:
+                    fingers.append(0)
+            
+            # Other fingers
+            for id in [8, 12, 16, 20]:
+                if landmark_list[id][2] < landmark_list[id - 2][2]:
+                    fingers.append(1)
+                else:
+                    fingers.append(0)
+            
+            # Draw finger tips
+            for i in range(5):
+                if fingers[i] == 1:
+                    cx, cy = landmark_list[(i + 1) * 4][1], landmark_list[(i + 1) * 4][2]
+                    cv2.circle(img, (cx, cy), 5, (255, 0, 255), 1)
         
-        # Blend canvas with video
+        # GESTURE HANDLING
+        if len(fingers) == 5:
+            # Thumb + Index = Draw
+            if sum(fingers) == 2 and fingers[0] == fingers[1] == 1:
+                current_gesture = "Drawing"
+                cx, cy = landmark_list[8][1], landmark_list[8][2]
+                if p1 == 0 and p2 == 0:
+                    p1, p2 = cx, cy
+                cv2.line(imgCanvas, (p1, p2), (cx, cy), (255, 0, 255), 5)
+                p1, p2 = cx, cy
+            
+            # Thumb + Index + Middle = Move
+            elif sum(fingers) == 3 and fingers[0] == fingers[1] == fingers[2] == 1:
+                current_gesture = "Moving"
+                p1, p2 = 0, 0
+            
+            # Thumb + Middle = Erase
+            elif sum(fingers) == 2 and fingers[0] == fingers[2] == 1:
+                current_gesture = "Erasing"
+                cx, cy = landmark_list[12][1], landmark_list[12][2]
+                if p1 == 0 and p2 == 0:
+                    p1, p2 = cx, cy
+                cv2.line(imgCanvas, (p1, p2), (cx, cy), (0, 0, 0), 15)
+                p1, p2 = cx, cy
+            
+            # Thumb + Pinky = Clear
+            elif sum(fingers) == 2 and fingers[0] == fingers[4] == 1:
+                current_gesture = "Clearing"
+                imgCanvas = np.zeros((550, 950, 3), dtype=np.uint8)
+                p1, p2 = 0, 0
+            
+            # Index + Middle = Analyze
+            elif sum(fingers) == 2 and fingers[1] == fingers[2] == 1:
+                current_gesture = "Analyzing"
+                p1, p2 = 0, 0
+            
+            else:
+                current_gesture = "None"
+                p1, p2 = 0, 0
+        else:
+            current_gesture = "None"
+            p1, p2 = 0, 0
+        
+        # Blend canvas with video (EXACT original logic)
         blended = cv2.addWeighted(img, 0.7, imgCanvas, 1, 0)
         imgGray = cv2.cvtColor(imgCanvas, cv2.COLOR_BGR2GRAY)
         _, imgInv = cv2.threshold(imgGray, 50, 255, cv2.THRESH_BINARY_INV)
@@ -465,8 +533,8 @@ def process_browser_frame():
         blended = cv2.bitwise_and(blended, imgInv)
         final_img = cv2.bitwise_or(blended, imgCanvas)
         
-        # Encode result
-        _, buffer = cv2.imencode('.jpg', final_img)
+        # Encode
+        _, buffer = cv2.imencode('.jpg', final_img, [cv2.IMWRITE_JPEG_QUALITY, 85])
         frame_base64 = base64.b64encode(buffer).decode('utf-8')
         
         return jsonify({
@@ -477,6 +545,8 @@ def process_browser_frame():
         
     except Exception as e:
         print(f"Error processing frame: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/drawinair/stop', methods=['POST'])

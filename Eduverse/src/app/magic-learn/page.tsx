@@ -668,6 +668,9 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const [showTutorial, setShowTutorial] = useState(false)
   const [showTutorialPrompt, setShowTutorialPrompt] = useState(true)
   const animationFrameRef = useRef<number | null>(null)
+  const processingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const lastProcessedFrameRef = useRef<string | null>(null)
+  const isProcessingRef = useRef<boolean>(false)
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -727,20 +730,51 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       
       setIsStreaming(true)
       
-      // SMOOTH rendering with requestAnimationFrame
-      const renderFrame = async () => {
-        if (!videoRef.current || !canvasRef.current) return
+      // RENDERING LOOP: Runs at 60 FPS for smooth display
+      const renderFrame = () => {
+        if (!videoRef.current || !canvasRef.current || !isStreaming) {
+          return
+        }
         
         const video = videoRef.current
         const canvas = canvasRef.current
         const ctx = canvas.getContext('2d')
         if (!ctx) return
         
-        // Capture and send frame
-        ctx.drawImage(video, 0, 0, 950, 550)
-        const frameData = canvas.toDataURL('image/jpeg', 0.7)
+        // Draw either processed frame or raw video
+        if (lastProcessedFrameRef.current) {
+          const img = new Image()
+          img.src = lastProcessedFrameRef.current
+          ctx.drawImage(img, 0, 0, 950, 550)
+        } else {
+          ctx.drawImage(video, 0, 0, 950, 550)
+        }
+        
+        // Continue loop
+        animationFrameRef.current = requestAnimationFrame(renderFrame)
+      }
+      
+      // PROCESSING LOOP: Sends frames to backend at 10 FPS
+      const processFrame = async () => {
+        if (isProcessingRef.current || !videoRef.current || !canvasRef.current) {
+          return
+        }
+        
+        isProcessingRef.current = true
         
         try {
+          const video = videoRef.current
+          
+          // Create temp canvas to capture frame
+          const tempCanvas = document.createElement('canvas')
+          tempCanvas.width = 950
+          tempCanvas.height = 550
+          const tempCtx = tempCanvas.getContext('2d')
+          if (!tempCtx) return
+          
+          tempCtx.drawImage(video, 0, 0, 950, 550)
+          const frameData = tempCanvas.toDataURL('image/jpeg', 0.8)
+          
           const res = await fetch(`${BACKEND_URL}/api/drawinair/process-frame`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -749,20 +783,19 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
           
           const result = await res.json()
           if (result.success && result.frame) {
-            const img = new Image()
-            img.onload = () => ctx.drawImage(img, 0, 0, 950, 550)
-            img.src = result.frame
+            lastProcessedFrameRef.current = result.frame
             setCurrentGesture(result.gesture || 'None')
           }
         } catch (err) {
-          console.error('Frame error:', err)
+          console.error('Frame processing error:', err)
+        } finally {
+          isProcessingRef.current = false
         }
-        
-        // Continue at 60 FPS
-        animationFrameRef.current = requestAnimationFrame(renderFrame)
       }
       
+      // Start both loops
       animationFrameRef.current = requestAnimationFrame(renderFrame)
+      processingIntervalRef.current = setInterval(processFrame, 100) // 10 FPS
       
     } catch (err: any) {
       console.error('Camera error:', err)
@@ -773,11 +806,21 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
   const stopCamera = async () => {
     try {
-      // Stop animation frame
+      // Stop rendering loop
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
         animationFrameRef.current = null
       }
+      
+      // Stop processing loop
+      if (processingIntervalRef.current) {
+        clearInterval(processingIntervalRef.current)
+        processingIntervalRef.current = null
+      }
+      
+      // Reset refs
+      lastProcessedFrameRef.current = null
+      isProcessingRef.current = false
       
       // Stop browser camera
       if (videoRef.current?.srcObject) {
