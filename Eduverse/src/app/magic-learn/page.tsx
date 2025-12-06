@@ -657,8 +657,7 @@ function AboutContent({ theme }: { theme: 'light' | 'dark' }) {
 }
 
 function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<string>('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -701,135 +700,38 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const startCamera = async () => {
     try {
       setError('')
-      setIsStreaming(false)
       
-      console.log('Step 1: Initializing backend...')
-      
-      // Initialize backend (no camera needed on server)
+      // Start backend camera
       const response = await fetch(`${BACKEND_URL}/api/drawinair/start`, {
         method: 'POST'
       })
       
       const data = await response.json()
-      console.log('Backend response:', data)
       
       if (!data.success) {
-        setError(data.error || 'Failed to initialize backend')
+        setError(data.error || 'Failed to start camera')
         return
       }
       
-      console.log('Step 2: Requesting camera access...')
-      
-      // Get browser camera
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 950, height: 550, facingMode: 'user' } 
-      })
-      
-      console.log('Step 3: Camera access granted, setting up video element...')
-      
-      // Refs are now always available since elements are always rendered
-      const video = videoRef.current!
-      const canvas = canvasRef.current!
-      
-      video.srcObject = stream
-      
-      console.log('Step 4: Waiting for video to load...')
-      
-      // Wait for video to be ready before starting frame processing
-      await new Promise<void>((resolve, reject) => {
-        video.onloadedmetadata = () => {
-          console.log('Video metadata loaded, starting playback...')
-          video.play()
-            .then(() => {
-              console.log('Video playing successfully')
-              resolve()
-            })
-            .catch((err) => {
-              console.error('Video play error:', err)
-              reject(err)
-            })
-        }
-        
-        // Timeout after 5 seconds
-        setTimeout(() => reject(new Error('Video loading timeout')), 5000)
-      })
-      
-      console.log('Step 5: Starting frame processing...')
+      // Set video feed source for smooth 30 FPS streaming
+      if (imgRef.current) {
+        imgRef.current.src = `${BACKEND_URL}/api/drawinair/video-feed?t=${Date.now()}`
+      }
       
       setIsStreaming(true)
-      setError('')
       
-      let isProcessing = false
-      let lastProcessedFrame: string | null = null
-      
-      // Continuous rendering loop using requestAnimationFrame for smooth display
-      const renderLoop = () => {
-        if (!videoRef.current || !canvasRef.current) return
-        
-        const video = videoRef.current
-        const canvas = canvasRef.current
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-        
-        // Always draw the latest frame (either processed or raw video)
-        if (lastProcessedFrame) {
-          // Draw the processed frame with hand tracking
-          const img = new window.Image()
-          img.src = lastProcessedFrame
-          ctx.drawImage(img, 0, 0, 950, 550)
-        } else {
-          // Draw raw video while waiting for first processed frame
-          ctx.drawImage(video, 0, 0, 950, 550)
-        }
-        
-        // Continue the loop
-        if (frameIntervalRef.current !== null) {
-          requestAnimationFrame(renderLoop)
-        }
-      }
-      
-      // Start the rendering loop
-      requestAnimationFrame(renderLoop)
-      
-      // Separate loop for sending frames to backend for processing
-      const processFrame = async () => {
-        if (isProcessing || !videoRef.current || !canvasRef.current) return
-        
-        isProcessing = true
-        
+      // Poll for gesture updates
+      frameIntervalRef.current = setInterval(async () => {
         try {
-          const video = videoRef.current
-          const tempCanvas = document.createElement('canvas')
-          tempCanvas.width = 950
-          tempCanvas.height = 550
-          const tempCtx = tempCanvas.getContext('2d')
-          if (!tempCtx) return
-          
-          // Capture current video frame
-          tempCtx.drawImage(video, 0, 0, 950, 550)
-          const frameData = tempCanvas.toDataURL('image/jpeg', 0.8)
-          
-          // Send to backend for processing
-          const processResponse = await fetch(`${BACKEND_URL}/api/drawinair/process-frame`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ frame: frameData })
-          })
-          
-          const result = await processResponse.json()
-          if (result.success && result.frame) {
-            lastProcessedFrame = result.frame
-            setCurrentGesture(result.gesture || 'None')
+          const gestureResponse = await fetch(`${BACKEND_URL}/api/drawinair/gesture`)
+          const gestureData = await gestureResponse.json()
+          if (gestureData.success) {
+            setCurrentGesture(gestureData.gesture || 'None')
           }
         } catch (err) {
-          console.error('Frame processing error:', err)
-        } finally {
-          isProcessing = false
+          console.error('Gesture polling error:', err)
         }
-      }
-      
-      // Process frames at ~10 FPS
-      frameIntervalRef.current = setInterval(processFrame, 100) as any
+      }, 100)
       
       console.log('DrawInAir camera started successfully!')
       
@@ -862,28 +764,18 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
   const stopCamera = async () => {
     try {
-      // Stop frame processing
+      // Stop gesture polling
       if (frameIntervalRef.current) {
         clearInterval(frameIntervalRef.current)
         frameIntervalRef.current = null
       }
       
-      // Stop browser camera
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream
-        stream.getTracks().forEach(track => track.stop())
-        videoRef.current.srcObject = null
+      // Clear image source
+      if (imgRef.current) {
+        imgRef.current.src = ''
       }
       
-      // Clear canvas
-      if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext('2d')
-        if (ctx) {
-          ctx.clearRect(0, 0, 950, 550)
-        }
-      }
-      
-      // Notify backend
+      // Notify backend to stop camera
       await fetch(`${BACKEND_URL}/api/drawinair/stop`, {
         method: 'POST'
       })
@@ -1586,22 +1478,6 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
             )}
 
             <div className="relative bg-gray-900 rounded-lg overflow-hidden">
-              {/* Always render video and canvas, but hide them when not streaming */}
-              <video
-                ref={videoRef}
-                className="hidden"
-                autoPlay
-                playsInline
-                muted
-              />
-              
-              <canvas
-                ref={canvasRef}
-                width={950}
-                height={550}
-                className={isStreaming ? "w-full h-auto" : "hidden"}
-              />
-              
               {!isStreaming ? (
                 <div className="flex items-center justify-center h-[550px] text-gray-400">
                   <div className="text-center">
@@ -1611,6 +1487,13 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                 </div>
               ) : (
                 <div className="relative">
+                  <img
+                    ref={imgRef}
+                    alt="Hand Tracking Stream"
+                    className="w-full h-auto"
+                    onError={() => setError('Failed to load video stream. Make sure backend is running.')}
+                  />
+                  
                   {/* Gesture Overlay */}
                   {currentGesture && currentGesture !== 'None' && (
                     <div className="absolute top-4 left-4 bg-black/70 text-white px-4 py-2 rounded-lg flex items-center gap-2">

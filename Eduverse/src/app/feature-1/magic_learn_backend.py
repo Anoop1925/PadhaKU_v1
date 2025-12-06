@@ -379,28 +379,12 @@ def generate_frames():
 
 @app.route('/api/drawinair/start', methods=['POST'])
 def start_drawinair():
-    """Start DrawInAir - Returns success without starting camera (browser handles camera)"""
+    """Start DrawInAir camera with smooth 30 FPS streaming"""
     try:
-        # Initialize MediaPipe for hand tracking (no camera needed on server)
-        global mphands, imgCanvas
-        
-        if imgCanvas is None:
-            imgCanvas = np.zeros(shape=(550, 950, 3), dtype=np.uint8)
-        
-        if mphands is None:
-            mphands = hands.Hands(
-                static_image_mode=False,
-                max_num_hands=1,
-                min_detection_confidence=0.7,
-                min_tracking_confidence=0.65,
-                model_complexity=0
-            )
-        
-        return jsonify({
-            'success': True, 
-            'message': 'DrawInAir initialized (browser-based camera)',
-            'mode': 'browser-camera'
-        })
+        if initialize_camera():
+            return jsonify({'success': True, 'message': 'Camera started with 30 FPS streaming'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to open camera'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
