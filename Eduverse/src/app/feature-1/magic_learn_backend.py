@@ -640,5 +640,8 @@ if __name__ == '__main__':
     print("   - GET  /health                     - Health check")
     print("=" * 70)
     
+    # Get port from environment variable (Railway sets PORT automatically)
+    port = int(os.getenv('PORT', 5000))
+    
     # Run WITHOUT debug mode to prevent process duplication and auto-restart issues
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
