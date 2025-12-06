@@ -667,10 +667,9 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const lastGestureRef = useRef<string>('None')
   const [showTutorial, setShowTutorial] = useState(false)
   const [showTutorialPrompt, setShowTutorialPrompt] = useState(true)
-  const animationFrameRef = useRef<number | null>(null)
   const processingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const isProcessingRef = useRef<boolean>(false)
-  const landmarksRef = useRef<any>(null)
+  const processedImageRef = useRef<HTMLImageElement | null>(null)
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -730,78 +729,14 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       
       setIsStreaming(true)
       
-      // RENDERING LOOP: Runs at 60 FPS for smooth display
-      const renderFrame = () => {
-        if (!videoRef.current || !canvasRef.current) {
-          return
-        }
-        
-        const video = videoRef.current
-        const canvas = canvasRef.current
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-        
-        // Clear and draw video
-        ctx.clearRect(0, 0, 950, 550)
-        ctx.save()
-        ctx.scale(-1, 1)
-        ctx.translate(-950, 0)
-        ctx.drawImage(video, 0, 0, 950, 550)
-        ctx.restore()
-        
-        // Draw hand landmarks if available
-        if (landmarksRef.current) {
-          const landmarks = landmarksRef.current
-          
-          // Draw connections
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'
-          ctx.lineWidth = 2
-          const connections = [
-            [0,1],[1,2],[2,3],[3,4],
-            [0,5],[5,6],[6,7],[7,8],
-            [0,9],[9,10],[10,11],[11,12],
-            [0,13],[13,14],[14,15],[15,16],
-            [0,17],[17,18],[18,19],[19,20],
-            [5,9],[9,13],[13,17]
-          ]
-          
-          connections.forEach(([start, end]) => {
-            if (landmarks[start] && landmarks[end]) {
-              ctx.beginPath()
-              ctx.moveTo(950 - landmarks[start].x, landmarks[start].y)
-              ctx.lineTo(950 - landmarks[end].x, landmarks[end].y)
-              ctx.stroke()
-            }
-          })
-          
-          // Draw yellow fingertips
-          const fingertips = [4, 8, 12, 16, 20]
-          fingertips.forEach(id => {
-            if (landmarks[id]) {
-              const x = 950 - landmarks[id].x
-              const y = landmarks[id].y
-              ctx.beginPath()
-              ctx.arc(x, y, 12, 0, 2 * Math.PI)
-              ctx.strokeStyle = 'rgba(0, 200, 255, 0.8)'
-              ctx.lineWidth = 2
-              ctx.stroke()
-              ctx.beginPath()
-              ctx.arc(x, y, 8, 0, 2 * Math.PI)
-              ctx.fillStyle = 'rgba(0, 220, 255, 0.6)'
-              ctx.fill()
-            }
-          })
-        }
-        
-        // Continue loop
-        if (animationFrameRef.current !== null) {
-          animationFrameRef.current = requestAnimationFrame(renderFrame)
-        }
+      // Create reusable image element
+      if (!processedImageRef.current) {
+        processedImageRef.current = document.createElement('img')
       }
       
-      // PROCESSING LOOP: Sends frames to backend at 10 FPS
+      // PROCESSING LOOP: Get processed frames from backend at 30 FPS (faster than before)
       const processFrame = async () => {
-        if (isProcessingRef.current || !videoRef.current) {
+        if (isProcessingRef.current || !videoRef.current || !canvasRef.current) {
           return
         }
         
@@ -809,6 +744,9 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         
         try {
           const video = videoRef.current
+          const canvas = canvasRef.current
+          const ctx = canvas.getContext('2d')
+          if (!ctx) return
           
           // Capture frame
           const tempCanvas = document.createElement('canvas')
@@ -817,6 +755,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
           const tempCtx = tempCanvas.getContext('2d')
           if (!tempCtx) return
           
+          // Mirror frame before sending
           tempCtx.save()
           tempCtx.scale(-1, 1)
           tempCtx.translate(-950, 0)
@@ -832,16 +771,19 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
           })
           
           const result = await res.json()
-          if (result.success) {
-            // Update landmarks for smooth rendering
-            if (result.landmarks && result.landmarks.length > 0) {
-              const landmarkMap: any = {}
-              result.landmarks.forEach((lm: any) => {
-                landmarkMap[lm.id] = { x: lm.x, y: lm.y }
-              })
-              landmarksRef.current = landmarkMap
-            } else {
-              landmarksRef.current = null
+          if (result.success && result.frame) {
+            // Draw processed frame immediately
+            const img = processedImageRef.current
+            if (img) {
+              img.onload = () => {
+                ctx.clearRect(0, 0, 950, 550)
+                ctx.save()
+                ctx.scale(-1, 1)
+                ctx.translate(-950, 0)
+                ctx.drawImage(img, 0, 0, 950, 550)
+                ctx.restore()
+              }
+              img.src = result.frame
             }
             setCurrentGesture(result.gesture || 'None')
           }
@@ -852,9 +794,8 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         }
       }
       
-      // Start both loops
-      animationFrameRef.current = requestAnimationFrame(renderFrame)
-      processingIntervalRef.current = setInterval(processFrame, 100) // 10 FPS
+      // Run at 30 FPS (every 33ms) for smoother hand tracking
+      processingIntervalRef.current = setInterval(processFrame, 33)
       
     } catch (err: any) {
       console.error('Camera error:', err)
@@ -865,12 +806,6 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
   const stopCamera = async () => {
     try {
-      // Stop rendering loop
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-        animationFrameRef.current = null
-      }
-      
       // Stop processing loop
       if (processingIntervalRef.current) {
         clearInterval(processingIntervalRef.current)
@@ -879,7 +814,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       
       // Reset refs
       isProcessingRef.current = false
-      landmarksRef.current = null
+      processedImageRef.current = null
       
       // Stop browser camera
       if (videoRef.current?.srcObject) {
