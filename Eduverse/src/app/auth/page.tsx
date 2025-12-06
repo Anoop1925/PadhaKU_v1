@@ -3,6 +3,10 @@
 import AuthForm from '../../components/AuthForm';
 import { motion } from "framer-motion";
 
+// Force no caching for this page to always show latest version
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Predefined particle positions and animations to avoid hydration mismatch
 const particles = [
   { left: "10%", top: "20%", delay: "0.5s", duration: "4.2s" },
