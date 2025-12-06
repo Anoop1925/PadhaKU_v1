@@ -727,29 +727,16 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       
       console.log('Step 3: Camera access granted, setting up video element...')
       
-      if (!videoRef.current) {
-        console.error('Video ref not available')
-        throw new Error('Video element not found. Please try again.')
-      }
+      // Refs are now always available since elements are always rendered
+      const video = videoRef.current!
+      const canvas = canvasRef.current!
       
-      if (!canvasRef.current) {
-        console.error('Canvas ref not available')
-        throw new Error('Canvas element not found. Please try again.')
-      }
-      
-      videoRef.current.srcObject = stream
+      video.srcObject = stream
       
       console.log('Step 4: Waiting for video to load...')
       
       // Wait for video to be ready before starting frame processing
       await new Promise<void>((resolve, reject) => {
-        if (!videoRef.current) {
-          reject(new Error('Video ref lost'))
-          return
-        }
-        
-        const video = videoRef.current
-        
         video.onloadedmetadata = () => {
           console.log('Video metadata loaded, starting playback...')
           video.play()
@@ -1579,6 +1566,22 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
             )}
 
             <div className="relative bg-gray-900 rounded-lg overflow-hidden">
+              {/* Always render video and canvas, but hide them when not streaming */}
+              <video
+                ref={videoRef}
+                className="hidden"
+                autoPlay
+                playsInline
+                muted
+              />
+              
+              <canvas
+                ref={canvasRef}
+                width={950}
+                height={550}
+                className={isStreaming ? "w-full h-auto" : "hidden"}
+              />
+              
               {!isStreaming ? (
                 <div className="flex items-center justify-center h-[550px] text-gray-400">
                   <div className="text-center">
@@ -1588,23 +1591,6 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                 </div>
               ) : (
                 <div className="relative">
-                  {/* Hidden video element for camera stream */}
-                  <video
-                    ref={videoRef}
-                    className="hidden"
-                    autoPlay
-                    playsInline
-                    muted
-                  />
-                  
-                  {/* Canvas for displaying processed frames with hand tracking */}
-                  <canvas
-                    ref={canvasRef}
-                    width={950}
-                    height={550}
-                    className="w-full h-auto"
-                  />
-                  
                   {/* Gesture Overlay */}
                   {currentGesture && currentGesture !== 'None' && (
                     <div className="absolute top-4 left-4 bg-black/70 text-white px-4 py-2 rounded-lg flex items-center gap-2">
