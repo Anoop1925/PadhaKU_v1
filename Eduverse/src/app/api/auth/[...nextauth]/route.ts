@@ -32,8 +32,8 @@ const authOptions: NextAuthOptions = {
 
   callbacks: {
     async signIn({ profile }) {
-      // Only allow @tcetmumbai.in domain emails
-      return profile?.email?.endsWith("@tcetmumbai.in") ?? false;
+      // Allow all Google accounts
+      return !!profile?.email;
     },
     async redirect({ baseUrl }) {
       return `${baseUrl}/dashboard`;

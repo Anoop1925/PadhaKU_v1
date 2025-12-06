@@ -969,7 +969,7 @@ export default function HomeNew() {
       </section>
 
       {/* Footer WITH GRID ANIMATION */}
-      <footer className="relative py-8 px-8 border-t border-gray-200 dark:border-gray-800 overflow-hidden">
+      <footer className="relative py-16 px-8 border-t border-gray-200 dark:border-gray-800 overflow-hidden">
         {/* ANIMATED GRID BACKGROUND */}
         <div className="absolute inset-0 opacity-[0.08]">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -982,10 +982,131 @@ export default function HomeNew() {
           </svg>
         </div>
 
-        <div className="max-w-6xl mx-auto text-center relative z-10">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            © 2025 PadhaKU. All rights reserved.
-          </p>
+        <div className="max-w-6xl mx-auto relative z-10">
+          {/* Footer Content Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+            {/* Column 1: Brand */}
+            <div className="space-y-4">
+              <Image
+                src="/Main-logo22.png"
+                alt="PadhaKU"
+                width={140}
+                height={46}
+                className="object-contain"
+              />
+              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                AI-powered personalized learning that gamifies education for everyone.
+              </p>
+            </div>
+
+            {/* Column 2: Platform */}
+            <div>
+              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">Platform</h3>
+              <ul className="space-y-2.5">
+                {[
+                  { label: 'Home', href: '#home' },
+                  { label: 'About Us', href: '#about-us' },
+                  { label: 'Features', href: '#features' },
+                  { label: 'Assets', href: '#assets' },
+                  { label: 'Support', href: '#support' },
+                ].map((link) => (
+                  <li key={link.label}>
+                    <button
+                      onClick={() => scrollToSection(link.href.replace('#', ''))}
+                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-[#387BFF] dark:hover:text-blue-400 transition-colors"
+                    >
+                      {link.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 3: Features */}
+            <div>
+              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">Features</h3>
+              <ul className="space-y-2.5">
+                {[
+                  { label: 'Magic Learn', href: '/feature-1' },
+                  { label: 'AI Course Generator', href: '/feature-2' },
+                  { label: 'Interactive Quiz', href: '/feature-3' },
+                  { label: 'AI Mentor', href: '/ai-mentor' },
+                  { label: 'Gamification', href: '/feature-5' },
+                ].map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-gray-600 dark:text-gray-400 hover:text-[#387BFF] dark:hover:text-blue-400 transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 4: Legal */}
+            <div>
+              <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">Legal</h3>
+              <ul className="space-y-2.5">
+                <li>
+                  <Link
+                    href="/privacy"
+                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-[#387BFF] dark:hover:text-blue-400 transition-colors"
+                  >
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/terms"
+                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-[#387BFF] dark:hover:text-blue-400 transition-colors"
+                  >
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <a
+                    href="mailto:support@padhaku.com"
+                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-[#387BFF] dark:hover:text-blue-400 transition-colors"
+                  >
+                    Contact Support
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="mailto:legal@padhaku.com"
+                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-[#387BFF] dark:hover:text-blue-400 transition-colors"
+                  >
+                    Legal Inquiries
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="pt-8 border-t border-gray-200 dark:border-gray-800">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                © 2025 PadhaKU - Learning, Reimagined for Everyone. All rights reserved.
+              </p>
+              <div className="flex items-center gap-6">
+                <Link
+                  href="/privacy"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-[#387BFF] dark:hover:text-blue-400 transition-colors"
+                >
+                  Privacy
+                </Link>
+                <Link
+                  href="/terms"
+                  className="text-sm text-gray-600 dark:text-gray-400 hover:text-[#387BFF] dark:hover:text-blue-400 transition-colors"
+                >
+                  Terms
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
