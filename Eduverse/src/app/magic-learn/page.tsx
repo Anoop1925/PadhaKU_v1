@@ -657,7 +657,8 @@ function AboutContent({ theme }: { theme: 'light' | 'dark' }) {
 }
 
 function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
-  const imgRef = useRef<HTMLImageElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<string>('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -666,6 +667,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const lastGestureRef = useRef<string>('None')
   const [showTutorial, setShowTutorial] = useState(false)
   const [showTutorialPrompt, setShowTutorialPrompt] = useState(true)
+  const frameIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -701,54 +703,114 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       setError('')
       setIsStreaming(false)
       
-      // Check if backend is reachable with proper timeout
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
-      
-      const healthCheck = await fetch(`${BACKEND_URL}/health`, {
-        signal: controller.signal
-      }).catch(() => null)
-      
-      clearTimeout(timeoutId)
-      
-      if (!healthCheck || !healthCheck.ok) {
-        setError('Backend server is not running. Please wait a moment and try again, or restart Magic Learn.')
-        return
-      }
-      
-      // Start backend camera
+      // Initialize backend (no camera needed on server)
       const response = await fetch(`${BACKEND_URL}/api/drawinair/start`, {
         method: 'POST'
       })
       
       const data = await response.json()
       
-      if (data.success) {
-        setIsStreaming(true)
-        setError('')
-        // Video stream will load automatically via img src
-      } else {
-        setError(data.error || 'Failed to start camera')
+      if (!data.success) {
+        setError(data.error || 'Failed to initialize backend')
+        return
       }
-    } catch (err) {
+      
+      // Get browser camera
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: 950, height: 550, facingMode: 'user' } 
+      })
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.play()
+      }
+      
+      setIsStreaming(true)
+      setError('')
+      
+      // Start sending frames to backend for processing
+      frameIntervalRef.current = setInterval(async () => {
+        if (!videoRef.current || !canvasRef.current) return
+        
+        const video = videoRef.current
+        const canvas = canvasRef.current
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        
+        // Draw current video frame to canvas
+        canvas.width = 950
+        canvas.height = 550
+        ctx.drawImage(video, 0, 0, 950, 550)
+        
+        // Get frame as base64
+        const frameData = canvas.toDataURL('image/jpeg', 0.8)
+        
+        // Send to backend for processing
+        try {
+          const processResponse = await fetch(`${BACKEND_URL}/api/drawinair/process-frame`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ frame: frameData })
+          })
+          
+          const result = await processResponse.json()
+          if (result.success && result.frame) {
+            // Display processed frame with hand tracking
+            const img = new window.Image()
+            img.onload = () => {
+              ctx.drawImage(img, 0, 0, 950, 550)
+            }
+            img.src = result.frame
+            setCurrentGesture(result.gesture || 'None')
+          }
+        } catch (err) {
+          console.error('Frame processing error:', err)
+        }
+      }, 100) // Process at ~10 FPS
+      
+    } catch (err: any) {
       console.error('Error starting camera:', err)
-      setError('Failed to connect to backend. Please wait for the server to start (can take up to 30 seconds).')
+      if (err.name === 'NotAllowedError') {
+        setError('Camera permission denied. Please allow camera access and try again.')
+      } else if (err.name === 'NotFoundError') {
+        setError('No camera found. Please connect a camera and try again.')
+      } else {
+        setError('Failed to access camera. Please check your browser permissions.')
+      }
     }
   }
 
   const stopCamera = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/drawinair/stop`, {
+      // Stop frame processing
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current)
+        frameIntervalRef.current = null
+      }
+      
+      // Stop browser camera
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream
+        stream.getTracks().forEach(track => track.stop())
+        videoRef.current.srcObject = null
+      }
+      
+      // Clear canvas
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext('2d')
+        if (ctx) {
+          ctx.clearRect(0, 0, 950, 550)
+        }
+      }
+      
+      // Notify backend
+      await fetch(`${BACKEND_URL}/api/drawinair/stop`, {
         method: 'POST'
       })
       
-      if (response.ok) {
-        console.log('Camera stopped successfully')
-      }
     } catch (err) {
       console.error('Error stopping camera:', err)
     } finally {
-      // Always update UI state even if backend call fails
       setIsStreaming(false)
       setCurrentGesture('None')
       setAnalysisResult('')
@@ -1453,12 +1515,21 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                 </div>
               ) : (
                 <div className="relative">
-                  <img
-                    ref={imgRef}
-                    src={`${BACKEND_URL}/api/drawinair/video-feed`}
-                    alt="Hand Tracking Stream"
+                  {/* Hidden video element for camera stream */}
+                  <video
+                    ref={videoRef}
+                    className="hidden"
+                    autoPlay
+                    playsInline
+                    muted
+                  />
+                  
+                  {/* Canvas for displaying processed frames with hand tracking */}
+                  <canvas
+                    ref={canvasRef}
+                    width={950}
+                    height={550}
                     className="w-full h-auto"
-                    onError={() => setError('Failed to load video stream. Make sure backend is running on port 5000.')}
                   />
                   
                   {/* Gesture Overlay */}
