@@ -817,20 +817,20 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
               }
               prevPointRef.current = { x, y }
             }
-            // Erasing: Thumb + Middle (mirror X coordinate)
+            // Erasing: Thumb + Middle (use clearRect instead of black stroke)
             else if (fingers[0] === 1 && fingers[2] === 1 && fingers[1] === 0) {
               setCurrentGesture('Erasing')
               const x = (1 - middleTip.x) * 950  // Mirror X
               const y = middleTip.y * 550
               
-              if (prevPointRef.current) {
-                drawingCtx.beginPath()
-                drawingCtx.moveTo(prevPointRef.current.x, prevPointRef.current.y)
-                drawingCtx.lineTo(x, y)
-                drawingCtx.strokeStyle = '#000000'
-                drawingCtx.lineWidth = 15
-                drawingCtx.stroke()
-              }
+              // Erase by clearing a circle area (transparent)
+              drawingCtx.save()
+              drawingCtx.globalCompositeOperation = 'destination-out'
+              drawingCtx.beginPath()
+              drawingCtx.arc(x, y, 15, 0, 2 * Math.PI)
+              drawingCtx.fill()
+              drawingCtx.restore()
+              
               prevPointRef.current = { x, y }
             }
             // Clear: Thumb + Pinky

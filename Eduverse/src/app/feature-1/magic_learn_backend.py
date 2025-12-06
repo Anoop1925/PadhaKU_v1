@@ -29,13 +29,41 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# Get API keys from .env - Separate keys for each feature to avoid rate limits
-DRAWINAIR_API_KEY = os.getenv('DRAWINAIR_API_KEY')
-IMAGE_READER_API_KEY = os.getenv('IMAGE_READER_API_KEY')
-PLOT_CRAFTER_API_KEY = os.getenv('PLOT_CRAFTER_API_KEY')
+# API KEY ROTATION SYSTEM - Multiple keys with automatic failover
+DRAWINAIR_API_KEYS = [
+    os.getenv('DRAWINAIR_API_KEY'),
+    os.getenv('DRAWINAIR_API_KEY_2'),
+    os.getenv('DRAWINAIR_API_KEY_3'),
+    os.getenv('DRAWINAIR_API_KEY_4'),
+    os.getenv('DRAWINAIR_API_KEY_5'),
+]
+IMAGE_READER_API_KEYS = [
+    os.getenv('IMAGE_READER_API_KEY'),
+    os.getenv('IMAGE_READER_API_KEY_2'),
+    os.getenv('IMAGE_READER_API_KEY_3'),
+]
+PLOT_CRAFTER_API_KEYS = [
+    os.getenv('PLOT_CRAFTER_API_KEY'),
+    os.getenv('PLOT_CRAFTER_API_KEY_2'),
+    os.getenv('PLOT_CRAFTER_API_KEY_3'),
+]
 
-if not all([DRAWINAIR_API_KEY, IMAGE_READER_API_KEY, PLOT_CRAFTER_API_KEY]):
-    raise ValueError("One or more API keys not found in .env file. Please add DRAWINAIR_API_KEY, IMAGE_READER_API_KEY, and PLOT_CRAFTER_API_KEY")
+# Filter out None values (keys not set in .env)
+DRAWINAIR_API_KEYS = [k for k in DRAWINAIR_API_KEYS if k]
+IMAGE_READER_API_KEYS = [k for k in IMAGE_READER_API_KEYS if k]
+PLOT_CRAFTER_API_KEYS = [k for k in PLOT_CRAFTER_API_KEYS if k]
+
+# Track current key index for each feature
+current_drawinair_key_idx = 0
+current_image_reader_key_idx = 0
+current_plot_crafter_key_idx = 0
+
+if not DRAWINAIR_API_KEYS or not IMAGE_READER_API_KEYS or not PLOT_CRAFTER_API_KEYS:
+    raise ValueError("At least one API key required for each feature. Add keys to .env file.")
+
+print(f"✅ Loaded {len(DRAWINAIR_API_KEYS)} DrawInAir API keys")
+print(f"✅ Loaded {len(IMAGE_READER_API_KEYS)} Image Reader API keys")
+print(f"✅ Loaded {len(PLOT_CRAFTER_API_KEYS)} Plot Crafter API keys")
 
 # Global variables for DrawInAir
 camera = None
@@ -53,6 +81,43 @@ gesture_lock_counter = 0  # How many frames we've been in locked mode
 LOCK_THRESHOLD = 3  # Frames needed to lock into a gesture
 UNLOCK_THRESHOLD = 3  # Frames needed to unlock (REDUCED from 10 for instant response)
 INTENTIONAL_SWITCH_THRESHOLD = 2  # Quick switch for intentional gesture changes
+
+def get_next_api_key(feature='drawinair'):
+    """
+    Get next API key with automatic rotation on exhaustion
+    Returns: (api_key, key_index) tuple
+    """
+    global current_drawinair_key_idx, current_image_reader_key_idx, current_plot_crafter_key_idx
+    
+    if feature == 'drawinair':
+        keys = DRAWINAIR_API_KEYS
+        idx = current_drawinair_key_idx
+    elif feature == 'image_reader':
+        keys = IMAGE_READER_API_KEYS
+        idx = current_image_reader_key_idx
+    elif feature == 'plot_crafter':
+        keys = PLOT_CRAFTER_API_KEYS
+        idx = current_plot_crafter_key_idx
+    else:
+        raise ValueError(f"Unknown feature: {feature}")
+    
+    return keys[idx % len(keys)], idx
+
+def rotate_api_key(feature='drawinair'):
+    """
+    Rotate to next API key when current one is exhausted
+    """
+    global current_drawinair_key_idx, current_image_reader_key_idx, current_plot_crafter_key_idx
+    
+    if feature == 'drawinair':
+        current_drawinair_key_idx = (current_drawinair_key_idx + 1) % len(DRAWINAIR_API_KEYS)
+        print(f"🔄 Rotated DrawInAir API key to index {current_drawinair_key_idx}")
+    elif feature == 'image_reader':
+        current_image_reader_key_idx = (current_image_reader_key_idx + 1) % len(IMAGE_READER_API_KEYS)
+        print(f"🔄 Rotated Image Reader API key to index {current_image_reader_key_idx}")
+    elif feature == 'plot_crafter':
+        current_plot_crafter_key_idx = (current_plot_crafter_key_idx + 1) % len(PLOT_CRAFTER_API_KEYS)
+        print(f"🔄 Rotated Plot Crafter API key to index {current_plot_crafter_key_idx}")
 
 def initialize_camera():
     """Initialize camera and MediaPipe hands with OPTIMIZED settings for smooth tracking"""
@@ -609,7 +674,7 @@ def get_current_gesture():
 @app.route('/api/drawinair/analyze', methods=['POST'])
 def analyze_drawing():
     """
-    Analyze drawn content with Gemini AI
+    Analyze drawn content with Gemini AI with automatic API key rotation
     Now accepts image from frontend (client-side drawing canvas)
     """
     global analysis_result
@@ -636,12 +701,18 @@ def analyze_drawing():
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         pil_image = Image.fromarray(img_rgb)
         
-        # Configure Gemini with DrawInAir API key
-        genai.configure(api_key=DRAWINAIR_API_KEY)
-        
-        # Analyze with Gemini 2.5 Flash Lite
-        model = genai.GenerativeModel(model_name='gemini-2.5-flash-lite')
-        prompt = """Analyze the image and provide the following:
+        # Try with current API key, rotate on failure
+        max_retries = len(DRAWINAIR_API_KEYS)
+        for attempt in range(max_retries):
+            try:
+                api_key, key_idx = get_next_api_key('drawinair')
+                genai.configure(api_key=api_key)
+                
+                print(f"🔑 Using DrawInAir API key #{key_idx + 1}")
+                
+                # Analyze with Gemini 2.5 Flash Lite
+                model = genai.GenerativeModel(model_name='gemini-2.5-flash-lite')
+                prompt = """Analyze the image and provide the following:
 * If a mathematical equation is present:
    - The equation represented in the image.
    - The solution to the equation.
@@ -649,14 +720,35 @@ def analyze_drawing():
 * If a drawing is present and no equation is detected:
    - A brief description of the drawn image in simple terms.
 * If only a single text is present in the image, then just return the text only show the text only."""
-        
-        response = model.generate_content([prompt, pil_image])
-        analysis_result = response.text
-        
-        return jsonify({
-            'success': True,
-            'result': analysis_result
-        })
+                
+                response = model.generate_content([prompt, pil_image])
+                analysis_result = response.text
+                
+                return jsonify({
+                    'success': True,
+                    'result': analysis_result,
+                    'api_key_used': key_idx + 1
+                })
+                
+            except Exception as e:
+                error_msg = str(e).lower()
+                
+                # Check if it's a quota/rate limit error
+                if 'quota' in error_msg or 'rate' in error_msg or 'limit' in error_msg or 'exhausted' in error_msg:
+                    print(f"⚠️ API key #{key_idx + 1} exhausted: {e}")
+                    rotate_api_key('drawinair')
+                    
+                    if attempt < max_retries - 1:
+                        print(f"🔄 Retrying with next API key...")
+                        continue
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'error': 'All API keys exhausted. Please try again later.'
+                        }), 429
+                else:
+                    # Not a quota error, return immediately
+                    raise e
         
     except Exception as e:
         print(f"Analysis error: {e}")
