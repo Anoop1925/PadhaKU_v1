@@ -7,6 +7,9 @@ import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import Image from 'next/image'
+import { Hands, Results } from '@mediapipe/hands'
+import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'
+import { HAND_CONNECTIONS } from '@mediapipe/hands'
 
 // Railway backend URL
 const BACKEND_URL = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'https://magic-learn-production.up.railway.app';
@@ -660,6 +663,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
+  const drawingCanvasRef = useRef<HTMLCanvasElement>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<string>('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -669,9 +673,8 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const [showTutorial, setShowTutorial] = useState(false)
   const [showTutorialPrompt, setShowTutorialPrompt] = useState(true)
   const animationFrameRef = useRef<number | null>(null)
-  const processingIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const isProcessingRef = useRef<boolean>(false)
-  const processedImageRef = useRef<HTMLImageElement | null>(null)
+  const handsRef = useRef<Hands | null>(null)
+  const prevPointRef = useRef<{ x: number; y: number } | null>(null)
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -706,121 +709,156 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
     try {
       setError('')
       
-      // Initialize backend MediaPipe
-      const response = await fetch(`${BACKEND_URL}/api/drawinair/start`, {
-        method: 'POST'
-      })
-      
-      const data = await response.json()
-      if (!data.success) {
-        setError(data.error || 'Failed to initialize backend')
-        return
-      }
-      
       // Get browser camera
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { width: 950, height: 550, facingMode: 'user' } 
       })
       
-      if (!videoRef.current || !canvasRef.current) {
+      if (!videoRef.current || !canvasRef.current || !overlayCanvasRef.current || !drawingCanvasRef.current) {
         throw new Error('Video elements not ready')
       }
       
       videoRef.current.srcObject = stream
       await videoRef.current.play()
-      
       setIsStreaming(true)
+
+      // Initialize CLIENT-SIDE MediaPipe Hands (NO BACKEND DELAYS!)
+      const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      })
       
-      // Create reusable image element
-      if (!processedImageRef.current) {
-        processedImageRef.current = document.createElement('img')
-      }
-      
-      // VIDEO RENDERING: Smooth 60 FPS display
-      const renderVideoFrame = () => {
-        if (!videoRef.current || !canvasRef.current) return
+      hands.setOptions({
+        maxNumHands: 2,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      })
+
+      hands.onResults((results: Results) => {
+        if (!overlayCanvasRef.current || !drawingCanvasRef.current) return
+
+        const overlayCanvas = overlayCanvasRef.current
+        const overlayCtx = overlayCanvas.getContext('2d')
+        const drawingCanvas = drawingCanvasRef.current
+        const drawingCtx = drawingCanvas.getContext('2d')
         
+        if (!overlayCtx || !drawingCtx) return
+
+        // Clear overlay
+        overlayCtx.clearRect(0, 0, 950, 550)
+
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+          for (const landmarks of results.multiHandLandmarks) {
+            // Draw hand skeleton
+            drawConnectors(overlayCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 })
+            drawLandmarks(overlayCtx, landmarks, { color: '#FF0000', lineWidth: 1, radius: 3 })
+
+            // Draw yellow circles on fingertips
+            const fingertips = [4, 8, 12, 16, 20]
+            fingertips.forEach(idx => {
+              const landmark = landmarks[idx]
+              const x = landmark.x * 950
+              const y = landmark.y * 550
+              overlayCtx.beginPath()
+              overlayCtx.arc(x, y, 12, 0, 2 * Math.PI)
+              overlayCtx.strokeStyle = 'rgba(0, 200, 255, 0.8)'
+              overlayCtx.lineWidth = 2
+              overlayCtx.stroke()
+            })
+
+            // Gesture detection
+            const fingers = [0, 0, 0, 0, 0]
+            
+            // Thumb
+            if (landmarks[4].x < landmarks[3].x) fingers[0] = 1
+            
+            // Other fingers
+            for (let i = 1; i <= 4; i++) {
+              const tipIdx = 4 * i + 4
+              const pipIdx = 4 * i + 2
+              if (landmarks[tipIdx].y < landmarks[pipIdx].y) fingers[i] = 1
+            }
+
+            const indexTip = landmarks[8]
+            const middleTip = landmarks[12]
+
+            // Drawing: Thumb + Index
+            if (fingers[0] === 1 && fingers[1] === 1 && fingers[2] === 0) {
+              setCurrentGesture('Drawing')
+              const x = indexTip.x * 950
+              const y = indexTip.y * 550
+              
+              if (prevPointRef.current) {
+                drawingCtx.beginPath()
+                drawingCtx.moveTo(prevPointRef.current.x, prevPointRef.current.y)
+                drawingCtx.lineTo(x, y)
+                drawingCtx.strokeStyle = '#3B82F6'
+                drawingCtx.lineWidth = 3
+                drawingCtx.stroke()
+              }
+              prevPointRef.current = { x, y }
+            }
+            // Erasing: Thumb + Middle
+            else if (fingers[0] === 1 && fingers[2] === 1 && fingers[1] === 0) {
+              setCurrentGesture('Erasing')
+              const x = middleTip.x * 950
+              const y = middleTip.y * 550
+              
+              if (prevPointRef.current) {
+                drawingCtx.beginPath()
+                drawingCtx.moveTo(prevPointRef.current.x, prevPointRef.current.y)
+                drawingCtx.lineTo(x, y)
+                drawingCtx.strokeStyle = '#000000'
+                drawingCtx.lineWidth = 15
+                drawingCtx.stroke()
+              }
+              prevPointRef.current = { x, y }
+            }
+            // Clear: Thumb + Pinky
+            else if (fingers[0] === 1 && fingers[4] === 1 && fingers[1] === 0 && fingers[2] === 0) {
+              setCurrentGesture('Clearing')
+              drawingCtx.clearRect(0, 0, 950, 550)
+              prevPointRef.current = null
+            }
+            else {
+              setCurrentGesture('None')
+              prevPointRef.current = null
+            }
+          }
+        } else {
+          setCurrentGesture('None')
+          prevPointRef.current = null
+        }
+      })
+
+      handsRef.current = hands
+
+      // Process at 60 FPS (INSTANT - NO NETWORK!)
+      const processFrame = async () => {
+        if (!videoRef.current || !canvasRef.current) return
+
         const canvas = canvasRef.current
         const ctx = canvas.getContext('2d')
-        if (!ctx || !videoRef.current.videoWidth) return
-        
-        // Draw raw video mirrored for smooth playback
+        if (!ctx) return
+
+        // Draw mirrored video
         ctx.save()
         ctx.scale(-1, 1)
         ctx.translate(-950, 0)
         ctx.drawImage(videoRef.current, 0, 0, 950, 550)
         ctx.restore()
-        
+
+        // Send to MediaPipe
+        if (handsRef.current && videoRef.current.videoWidth > 0) {
+          await handsRef.current.send({ image: videoRef.current })
+        }
+
         if (isStreaming) {
-          animationFrameRef.current = requestAnimationFrame(renderVideoFrame)
+          animationFrameRef.current = requestAnimationFrame(processFrame)
         }
       }
-      
-      // Start smooth video rendering
-      renderVideoFrame()
-      
-      // PROCESSING LOOP: Get hand tracking overlays from backend at 30 FPS
-      const processFrame = async () => {
-        if (isProcessingRef.current || !videoRef.current || !overlayCanvasRef.current) {
-          return
-        }
-        
-        isProcessingRef.current = true
-        
-        try {
-          const video = videoRef.current
-          
-          // Capture frame
-          const tempCanvas = document.createElement('canvas')
-          tempCanvas.width = 950
-          tempCanvas.height = 550
-          const tempCtx = tempCanvas.getContext('2d')
-          if (!tempCtx) return
-          
-          // Mirror frame before sending
-          tempCtx.save()
-          tempCtx.scale(-1, 1)
-          tempCtx.translate(-950, 0)
-          tempCtx.drawImage(video, 0, 0, 950, 550)
-          tempCtx.restore()
-          
-          const frameData = tempCanvas.toDataURL('image/jpeg', 0.7)
-          
-          const res = await fetch(`${BACKEND_URL}/api/drawinair/process-frame`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ frame: frameData })
-          })
-          
-          const result = await res.json()
-          if (result.success && result.frame) {
-            // Draw hand tracking overlay
-            const img = processedImageRef.current
-            const overlayCanvas = overlayCanvasRef.current
-            const overlayCtx = overlayCanvas?.getContext('2d')
-            
-            if (img && overlayCtx) {
-              img.onload = () => {
-                overlayCtx.clearRect(0, 0, 950, 550)
-                overlayCtx.save()
-                overlayCtx.scale(-1, 1)
-                overlayCtx.translate(-950, 0)
-                overlayCtx.drawImage(img, 0, 0, 950, 550)
-                overlayCtx.restore()
-              }
-              img.src = result.frame
-            }
-            setCurrentGesture(result.gesture || 'None')
-          }
-        } catch (err) {
-          console.error('Frame processing error:', err)
-        } finally {
-          isProcessingRef.current = false
-        }
-      }
-      
-      // Run processing at 30 FPS
-      processingIntervalRef.current = setInterval(processFrame, 33)
+
+      processFrame()
       
     } catch (err: any) {
       console.error('Camera error:', err)
@@ -839,11 +877,13 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         animationFrameRef.current = null
       }
       
-      // Stop processing loop
-      if (processingIntervalRef.current) {
-        clearInterval(processingIntervalRef.current)
-        processingIntervalRef.current = null
+      // Close MediaPipe
+      if (handsRef.current) {
+        handsRef.current.close()
+        handsRef.current = null
       }
+      
+      prevPointRef.current = null
       
       // Reset refs
       isProcessingRef.current = false
@@ -1558,19 +1598,28 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
               </div>
             )}
 
-            <div className="relative bg-gray-900 rounded-lg overflow-hidden">
+            <div className="relative bg-gray-900 rounded-lg overflow-hidden" style={{ minHeight: '550px' }}>
               <video ref={videoRef} className="hidden" autoPlay playsInline muted />
               
-              {/* Base canvas - raw video at 60 FPS */}
+              {/* Layer 1: Raw video at 60 FPS */}
               <canvas 
                 ref={canvasRef} 
                 width={950} 
                 height={550} 
-                className="w-full h-auto absolute top-0 left-0"
+                className="w-full h-auto"
                 style={{ display: isStreaming ? 'block' : 'none' }}
               />
               
-              {/* Overlay canvas - hand tracking from backend at 30 FPS */}
+              {/* Layer 2: User drawings */}
+              <canvas 
+                ref={drawingCanvasRef} 
+                width={950} 
+                height={550} 
+                className="w-full h-auto absolute top-0 left-0 pointer-events-none"
+                style={{ display: isStreaming ? 'block' : 'none' }}
+              />
+              
+              {/* Layer 3: Hand tracking overlay */}
               <canvas 
                 ref={overlayCanvasRef} 
                 width={950} 
