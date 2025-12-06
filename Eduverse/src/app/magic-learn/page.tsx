@@ -671,6 +671,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const processingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastProcessedFrameRef = useRef<string | null>(null)
   const isProcessingRef = useRef<boolean>(false)
+  const processedImageRef = useRef<HTMLImageElement | null>(null)
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -730,6 +731,11 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       
       setIsStreaming(true)
       
+      // Create reusable image element for processed frames
+      if (!processedImageRef.current) {
+        processedImageRef.current = document.createElement('img')
+      }
+      
       // RENDERING LOOP: Runs at 60 FPS for smooth display
       const renderFrame = () => {
         if (!videoRef.current || !canvasRef.current) {
@@ -741,13 +747,19 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
         const ctx = canvas.getContext('2d')
         if (!ctx) return
         
-        // Draw either processed frame or raw video
-        if (lastProcessedFrameRef.current) {
-          const img = new Image()
-          img.src = lastProcessedFrameRef.current
-          ctx.drawImage(img, 0, 0, 950, 550)
-        } else {
-          ctx.drawImage(video, 0, 0, 950, 550)
+        // Draw the raw video feed first
+        ctx.drawImage(video, 0, 0, 950, 550)
+        
+        // If we have a processed frame, draw it on top
+        if (lastProcessedFrameRef.current && processedImageRef.current) {
+          // Update image src only if it changed
+          if (processedImageRef.current.src !== lastProcessedFrameRef.current) {
+            processedImageRef.current.src = lastProcessedFrameRef.current
+          }
+          // Draw if image is loaded
+          if (processedImageRef.current.complete && processedImageRef.current.naturalWidth > 0) {
+            ctx.drawImage(processedImageRef.current, 0, 0, 950, 550)
+          }
         }
         
         // Continue loop
@@ -823,6 +835,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
       // Reset refs
       lastProcessedFrameRef.current = null
       isProcessingRef.current = false
+      processedImageRef.current = null
       
       // Stop browser camera
       if (videoRef.current?.srcObject) {
