@@ -1,50 +1,52 @@
-# Environment Variables for Vercel Dashboard
-# Copy and paste these one by one into the Vercel dashboard
+# Environment Variables Template for Vercel Dashboard
+# ⚠️ SECURITY NOTICE: This is a TEMPLATE file with placeholders
+# ⚠️ DO NOT commit actual API keys to GitHub!
+# Copy this template and replace placeholders with your actual keys
 # Dashboard URL: https://vercel.com/anoop-patels-projects/padhaku-learning-reimagined/settings/environment-variables
 
 # ===========================================
 # NextAuth Authentication
 # ===========================================
-NEXTAUTH_SECRET=dt4dBj9rQRrI88t7NjCpuUVAczGWYi9Z9LxxtWzA6Rk=
-NEXTAUTH_URL=https://padhaku-learning-reimagined.vercel.app
+NEXTAUTH_SECRET=your_nextauth_secret_here
+NEXTAUTH_URL=https://your-vercel-app-name.vercel.app
 
 # ===========================================
 # Google OAuth
 # ===========================================
-GOOGLE_CLIENT_ID=1005800343234-empcr4bda0s1dgj5ngace9anej039s44.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 # ===========================================
 # PostgreSQL Database (Supabase)
 # ===========================================
-DATABASE_URL=postgresql://postgres:I_am_awesome_@161923@db.ospnnykxlcskxsosnwpt.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:your_password@your_supabase_host.supabase.co:5432/postgres
 
 # ===========================================
 # Supabase Client Configuration
 # ===========================================
-NEXT_PUBLIC_SUPABASE_URL=https://ospnnykxlcskxsosnwpt.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zcG5ueWt4bGNza3hzb3Nud3B0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0OTM3MzYsImV4cCI6MjA3NzA2OTczNn0.4CRzxzt5xguHB5llCsovg0wE1pczKkmsYZCPVZ591qU
+NEXT_PUBLIC_SUPABASE_URL=https://your_supabase_project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # ===========================================
 # Google Gemini AI
 # ===========================================
-GEMINI_API_KEY=AIzaSyAdCNk20VR1j0nQ9Iigc8BQqReEyncYRGY
+GEMINI_API_KEY=your_gemini_api_key
 
 # ===========================================
 # YouTube Data API v3
 # ===========================================
-YOUTUBE_API_KEY=AIzaSyAhIL85PLsL7pK-7CJxqNEqYWFVvb4obN8
+YOUTUBE_API_KEY=your_youtube_api_key
 
 # ===========================================
 # SerpAPI (for Google Image Search)
 # ===========================================
-SERPAPI_KEY=22537f15f67af3a5b2da664715a88d57047d5ef77942ca76b91e4300d565486c
+SERPAPI_KEY=your_serpapi_key
 
 # ===========================================
 # Vapi Voice AI
 # ===========================================
-NEXT_PUBLIC_VAPI_PUBLIC_KEY=1a37dbb8-4f41-4ba9-a6fc-1bfc79511a6a
-NEXT_PUBLIC_VAPI_ASSISTANT_ID=b350ccaa-7ae0-43fa-af46-f2d40bfd9828
+NEXT_PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_key
+NEXT_PUBLIC_VAPI_ASSISTANT_ID=your_vapi_assistant_id
 
 # ===========================================
 # Python Backend (Magic Learn - DrawInAir)

@@ -32,6 +32,13 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+
+# Sensitive environment variable files with actual API keys
+VERCEL_ENV_VARS.txt
+VERCEL_ENV_VARS_ACTUAL.txt
+*.env.local
+*.env.production
+
 # venv tracked with Git LFS in parent directory
 
 # vercel
