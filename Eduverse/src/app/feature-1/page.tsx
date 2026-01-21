@@ -222,8 +222,8 @@ export default function Feature1Page() {
                     <span className="text-gray-500">Start drawing</span>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="font-semibold text-purple-700 bg-purple-100/60 px-4 py-2 rounded-lg whitespace-nowrap">Thumb + Middle</span>
-                    <span className="text-gray-500">Erase drawing</span>
+                    <span className="font-semibold text-purple-700 bg-purple-100/60 px-4 py-2 rounded-lg whitespace-nowrap">All Four Fingers (No Thumb)</span>
+                    <span className="text-gray-500">Erase drawing with circular eraser</span>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="font-semibold text-purple-700 bg-purple-100/60 px-4 py-2 rounded-lg whitespace-nowrap">Thumb + Index + Middle</span>

@@ -33,18 +33,18 @@ GEMINI_API_KEY=AIzaSyAdCNk20VR1j0nQ9Iigc8BQqReEyncYRGY
 # ===========================================
 # YouTube Data API v3
 # ===========================================
-YOUTUBE_API_KEY=AIzaSyCnoYFJplPauyPDWiFy7WUt5-7CP4Wl8ZU
+YOUTUBE_API_KEY=AIzaSyAhIL85PLsL7pK-7CJxqNEqYWFVvb4obN8
+
+# ===========================================
+# SerpAPI (for Google Image Search)
+# ===========================================
+SERPAPI_KEY=22537f15f67af3a5b2da664715a88d57047d5ef77942ca76b91e4300d565486c
 
 # ===========================================
 # Vapi Voice AI
 # ===========================================
 NEXT_PUBLIC_VAPI_PUBLIC_KEY=1a37dbb8-4f41-4ba9-a6fc-1bfc79511a6a
 NEXT_PUBLIC_VAPI_ASSISTANT_ID=b350ccaa-7ae0-43fa-af46-f2d40bfd9828
-
-# ===========================================
-# Pixabay API
-# ===========================================
-PIXABAY_API_KEY=53271752-e19c9a583c91cf2717db8b0e2
 
 # ===========================================
 # Python Backend (Magic Learn - DrawInAir)

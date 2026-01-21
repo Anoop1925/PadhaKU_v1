@@ -188,9 +188,9 @@ export default function CourseDetailsPage() {
       <div className="flex items-center gap-6 mb-10 bg-gray-50 p-6 rounded-lg shadow-md">
         <div className="w-32 h-32 relative">
           {course.bannerImageUrl ? (
-            <Image src={course.bannerImageUrl} alt={`${course.name} course banner`} fill className="rounded-lg object-cover border" />
+            <Image src={course.bannerImageUrl} alt={`${course.name} course banner`} fill unoptimized className="rounded-lg object-cover border" />
           ) : course.bannerImagePrompt && (/^(https?:\/\/|\/)/.test(course.bannerImagePrompt) ? (
-            <Image src={course.bannerImagePrompt} alt={`${course.name} course banner`} fill className="rounded-lg object-cover border" />
+            <Image src={course.bannerImagePrompt} alt={`${course.name} course banner`} fill unoptimized className="rounded-lg object-cover border" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded-lg border text-gray-500">
               <BookOpen size={32} />

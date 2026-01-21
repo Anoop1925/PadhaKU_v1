@@ -676,6 +676,8 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const handsRef = useRef<Hands | null>(null)
   const prevPointRef = useRef<{ x: number; y: number } | null>(null)
   const isStreamingRef = useRef<boolean>(false)
+  const isProcessingRef = useRef<boolean>(false)
+  const processedImageRef = useRef<string | null>(null)
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -790,6 +792,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
             const indexTip = landmarks[8]
             const middleTip = landmarks[12]
+            const ringTip = landmarks[16]
             const pinkyTip = landmarks[20]
 
             // Analyze: Index + Middle (NO thumb)
@@ -811,23 +814,40 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                 drawingCtx.beginPath()
                 drawingCtx.moveTo(prevPointRef.current.x, prevPointRef.current.y)
                 drawingCtx.lineTo(x, y)
-                drawingCtx.strokeStyle = '#3B82F6'
-                drawingCtx.lineWidth = 3
+                drawingCtx.strokeStyle = '#2596be'
+                drawingCtx.lineWidth = 5
                 drawingCtx.stroke()
               }
               prevPointRef.current = { x, y }
-            }
-            // Erasing: Thumb + Middle (use clearRect instead of black stroke)
-            else if (fingers[0] === 1 && fingers[2] === 1 && fingers[1] === 0) {
-              setCurrentGesture('Erasing')
-              const x = (1 - middleTip.x) * 950  // Mirror X
-              const y = middleTip.y * 550
               
-              // Erase by clearing a circle area (transparent)
+              // Draw circle at index fingertip
+              overlayCtx.beginPath()
+              overlayCtx.arc((1 - indexTip.x) * 950, indexTip.y * 550, 8, 0, 2 * Math.PI)
+              overlayCtx.fillStyle = '#2596be'
+              overlayCtx.fill()
+            }
+            // Erasing: All four fingers (index+middle+ring+pinky) held together, NO thumb
+            else if (fingers[0] === 0 && fingers[1] === 1 && fingers[2] === 1 && fingers[3] === 1 && fingers[4] === 1) {
+              setCurrentGesture('Erasing')
+              
+              // Calculate center point of four fingertips
+              const centerX = (indexTip.x + middleTip.x + ringTip.x + pinkyTip.x) / 4
+              const centerY = (indexTip.y + middleTip.y + ringTip.y + pinkyTip.y) / 4
+              const x = (1 - centerX) * 950  // Mirror X
+              const y = centerY * 550
+              
+              // Draw large eraser circle on overlay (visual feedback)
+              overlayCtx.beginPath()
+              overlayCtx.arc(x, y, 35, 0, 2 * Math.PI)
+              overlayCtx.strokeStyle = 'rgba(0, 200, 255, 0.8)'
+              overlayCtx.lineWidth = 2
+              overlayCtx.stroke()
+              
+              // Erase by clearing a large circle area (transparent)
               drawingCtx.save()
               drawingCtx.globalCompositeOperation = 'destination-out'
               drawingCtx.beginPath()
-              drawingCtx.arc(x, y, 15, 0, 2 * Math.PI)
+              drawingCtx.arc(x, y, 35, 0, 2 * Math.PI)
               drawingCtx.fill()
               drawingCtx.restore()
               
@@ -937,6 +957,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
 
     setIsAnalyzing(true)
     setError('')
+    setAnalysisResult('')  // Clear previous result to prevent showing old analysis
     
     try {
       console.log('📤 Sending drawing for analysis...')
@@ -1145,12 +1166,12 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                     <p className={`text-sm mb-2 transition-colors duration-300 ${
                       theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                     }`}>
-                      Thumb + Middle Finger
+                      All Four Fingers Together (No Thumb)
                     </p>
                     <p className={`text-xs transition-colors duration-300 ${
                       theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
                     }`}>
-                      Use middle finger to erase parts of your drawing
+                      Hold index, middle, ring, and pinky fingers together to erase with a large circular eraser
                     </p>
                   </div>
 
@@ -1468,12 +1489,12 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                 <p className={`font-medium transition-colors duration-300 ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  Thumb + Middle: Erase
+                  All Four Fingers: Erase
                 </p>
                 <p className={`text-xs mt-1 transition-colors duration-300 ${
                   theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                 }`}>
-                  Remove parts of your drawing with middle finger
+                  Hold all four fingers together (no thumb) to erase with circular eraser
                 </p>
               </div>
             </div>

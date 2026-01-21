@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
+import { getJson } from 'serpapi';
 
 // Interface for playlist-based course structure
 interface PlaylistVideo {
@@ -16,7 +17,7 @@ interface PlaylistCourseData {
   videos: PlaylistVideo[];
 }
 
-// Function to find matching Code with Harry playlist and extract videos
+// Function to find matching playlist from popular educational channels
 async function findPlaylistCourse(courseName: string): Promise<PlaylistCourseData | null> {
   try {
     const youtubeApiKey = process.env.YOUTUBE_API_KEY;
@@ -25,36 +26,49 @@ async function findPlaylistCourse(courseName: string): Promise<PlaylistCourseDat
       return null;
     }
 
-    const codeWithHarryId = 'UCeVMnSShP_Iviwkknt83cww';
+    // Popular educational channels to search
+    const educationalChannels = [
+      { name: 'CodeWithHarry', id: 'UC7btqG2Ww0_2LwuQxpvo2HQ' },
+      { name: 'Apna College', id: 'UCBwmMxybNva6P_5VmxjzwqA' },
+      { name: 'freeCodeCamp.org', id: 'UC8butISFwT-Wl7EV0hUK0BQ' },
+      { name: 'WsCube Tech', id: 'UCG2g95-tU-KdcT0QoN9E4cg' },
+      { name: 'Hitesh Choudhary', id: 'UCXgGY0wkgOzynnHvSEVmE3A' }
+    ];
     
     // Extract main keyword from course name (e.g., "Python" from "Python Tutorial")
     const keywords = courseName.toLowerCase().split(' ');
     const mainKeyword = keywords[0]; // Use first word as primary keyword
     
-    console.log(`🔍 Searching Code with Harry playlists for: "${mainKeyword}"`);
+    console.log(`🔍 Searching for "${mainKeyword}" playlists across multiple channels...`);
+    console.log(`🔑 Using API Key: ${youtubeApiKey.substring(0, 10)}...`);
     
-    // Search for matching playlists
-    const playlistSearch = await axios.get(
-      `https://www.googleapis.com/youtube/v3/search`,
-      {
-        params: {
-          part: 'id,snippet',
-          maxResults: 5,
-          q: mainKeyword,
-          type: 'playlist',
-          channelId: codeWithHarryId,
-          key: youtubeApiKey,
-        }
-      }
-    );
+    // Search each channel for matching playlists
+    for (const channel of educationalChannels) {
+      console.log(`\n📺 Checking channel: ${channel.name}`);
+      
+      try {
+        // Search for matching playlists using YouTube Data API v3
+        const playlistSearch = await axios.get(
+          `https://www.googleapis.com/youtube/v3/search`,
+          {
+            params: {
+              part: 'id,snippet',
+              maxResults: 5,
+              q: mainKeyword,
+              type: 'playlist',
+              channelId: channel.id,
+              key: youtubeApiKey,
+            }
+          }
+        );
 
-    if (playlistSearch.data.items && playlistSearch.data.items.length > 0) {
-      // Find best matching playlist
-      for (const playlistItem of playlistSearch.data.items) {
-        const playlistId = playlistItem.id.playlistId;
-        const playlistTitle = playlistItem.snippet.title;
-        
-        console.log(`   📚 Found playlist: "${playlistTitle}"`);
+        if (playlistSearch.data.items && playlistSearch.data.items.length > 0) {
+          // Find best matching playlist
+          for (const playlistItem of playlistSearch.data.items) {
+            const playlistId = playlistItem.id.playlistId;
+            const playlistTitle = playlistItem.snippet.title;
+            
+            console.log(`   📚 Found playlist: "${playlistTitle}"`);
         
         // Get all videos from this playlist (up to 50)
         const playlistVideos = await axios.get(
@@ -112,16 +126,22 @@ async function findPlaylistCourse(courseName: string): Promise<PlaylistCourseDat
             }
           }
 
+          console.log(`   ✅ Using playlist from ${channel.name}: "${playlistTitle}"`);
           return {
             playlistId,
             playlistTitle,
             videos
           };
         }
+          }
+        }
+      } catch (channelError: any) {
+        console.warn(`   ⚠️ Error searching ${channel.name}:`, channelError.message);
+        // Continue to next channel
       }
     }
 
-    console.log('   ℹ️ No matching playlist found');
+    console.log('\n❌ No matching playlist found across all channels');
     return null;
   } catch (error) {
     console.error("❌ Playlist search error:", error);
@@ -141,10 +161,11 @@ async function searchYouTubeVideo(topic: string): Promise<string> {
     const searchQuery = `${topic} tutorial`;
     console.log(`🔍 Manual search for: "${searchQuery}"`);
     
-    const codeWithHarryId = 'UCeVMnSShP_Iviwkknt83cww';
+    const codeWithHarryId = 'UC7btqG2Ww0_2LwuQxpvo2HQ';
     
     try {
       // Search in Code with Harry channel first
+      console.log(`🔑 Using YouTube API Key: ${youtubeApiKey?.substring(0, 10)}...`);
       const videoSearch = await axios.get(
         `https://www.googleapis.com/youtube/v3/search`,
         {
@@ -188,8 +209,12 @@ async function searchYouTubeVideo(topic: string): Promise<string> {
         console.log(`   ✅ Found video (general search): ${videoId}`);
         return videoUrl;
       }
-    } catch (err) {
-      console.log('   ⚠️ Video search failed:', err);
+    } catch (err: any) {
+      console.log('   ⚠️ Video search failed:', err.message);
+      if (err.response) {
+        console.log('   📋 Response data:', err.response.data);
+        console.log('   📋 Response status:', err.response.status);
+      }
     }
 
     console.warn(`⚠️ No videos found for: ${searchQuery}`);
@@ -200,34 +225,76 @@ async function searchYouTubeVideo(topic: string): Promise<string> {
   }
 }
 
-// Function to generate image using Pixabay API
+// Function to generate course banner image using Gemini Image Generation API
 async function generateCourseImage(courseName: string, category: string, level: string): Promise<string> {
   try {
-    const apiKey = process.env.PIXABAY_API_KEY;
+    // Use SerpAPI key
+    const apiKey = process.env.SERPAPI_KEY || '22537f15f67af3a5b2da664715a88d57047d5ef77942ca76b91e4300d565486c';
     if (!apiKey) {
-      console.warn("⚠️ PIXABAY_API_KEY not found, skipping image generation");
+      console.warn("⚠️ SERPAPI_KEY not found, skipping image generation");
       return "";
     }
 
-    // Search for images based on category
-    const searchQuery = encodeURIComponent(category);
-    const pixabayUrl = `https://pixabay.com/api/?key=${apiKey}&q=${searchQuery}&image_type=photo&category=education&orientation=horizontal&per_page=3&safesearch=true`;
+    // Use course name as search keyword (first word or full name)
+    const searchKeyword = courseName.split(' ')[0] || courseName;
 
-    console.log(`🖼️ Searching Pixabay for: "${category}"`);
-    
-    const response = await axios.get(pixabayUrl);
+    console.log(`🔍 Searching Google Images for course banner: "${searchKeyword}"`);
 
-    if (response.data && response.data.hits && response.data.hits.length > 0) {
-      // Get the first high-quality image (largeImageURL for best quality)
-      const imageUrl = response.data.hits[0].largeImageURL || response.data.hits[0].webformatURL;
-      console.log(`✅ Found Pixabay image: ${imageUrl}`);
-      return imageUrl;
-    } else {
-      console.warn("⚠️ No images found on Pixabay for this category");
+    // Search Google Images using SerpAPI
+    const searchResults: any = await new Promise((resolve, reject) => {
+      getJson({
+        q: searchKeyword,
+        engine: 'google_images',
+        ijn: '0',
+        api_key: apiKey
+      }, (json: any) => {
+        if (json.error) {
+          reject(new Error(json.error));
+        } else {
+          resolve(json);
+        }
+      });
+    });
+
+    // Extract the first rectangular (landscape) image suitable for a banner
+    if (!searchResults.images_results || searchResults.images_results.length === 0) {
+      console.warn(`⚠️ No image results found for: "${searchKeyword}"`);
       return "";
     }
+
+    // Find first rectangular image (width >= height * 1.8) for banner
+    let selectedImage = null;
+    for (const image of searchResults.images_results) {
+      const width = image.original_width;
+      const height = image.original_height;
+      
+      // Check if image is rectangular/landscape (width should be at least 1.8x the height)
+      if (width && height && width >= height * 1.75) {
+        selectedImage = image;
+        console.log(`📐 Found rectangular banner image: ${width}x${height} (ratio: ${(width/height).toFixed(2)})`);
+        break;
+      }
+    }
+
+    // Fallback to first image if no rectangular image found
+    if (!selectedImage) {
+      console.warn(`⚠️ No rectangular image (1.8 ratio) found, using first available image`);
+      selectedImage = searchResults.images_results[0];
+    }
+
+    // Use thumbnail for "zoomed out" effect to avoid cropping
+    const imageUrl = selectedImage.thumbnail || selectedImage.original;
+
+    if (!imageUrl) {
+      console.warn(`⚠️ No image URL found in selected result`);
+      return "";
+    }
+
+    console.log(`✅ Course banner found successfully: ${imageUrl}`);
+    return imageUrl;
+
   } catch (error) {
-    console.error("❌ Error fetching image from Pixabay:", error);
+    console.error("❌ Error searching course banner:", error);
     return "";
   }
 }
