@@ -38,6 +38,9 @@ VERCEL_ENV_VARS.txt
 VERCEL_ENV_VARS_ACTUAL.txt
 *.env.local
 *.env.production
+add-vercel-env.ps1
+DEPLOYMENT_TROUBLESHOOTING.md
+API_KEY_SECURITY.md
 
 # venv tracked with Git LFS in parent directory
 
