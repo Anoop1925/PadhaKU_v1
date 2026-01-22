@@ -5,7 +5,8 @@ export async function POST(request: NextRequest) {
     const { imageData } = await request.json();
     
     // Call Flask backend on port 5000
-    const response = await fetch('http://localhost:5000/api/analyze-drawing', {
+    const backendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'https://magic-learn-backend.onrender.com';
+    const response = await fetch(`${backendUrl}/api/analyze-drawing`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

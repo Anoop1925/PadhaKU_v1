@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-// Railway backend URL
-const BACKEND_URL = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'https://magic-learn-production.up.railway.app';
+// Render backend URL
+const BACKEND_URL = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'https://magic-learn-backend.onrender.com';
 
 // Function to check if Magic Learn backend is responding
 async function isBackendHealthy(): Promise<boolean> {

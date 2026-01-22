@@ -11,8 +11,8 @@ import { Hands, Results } from '@mediapipe/hands'
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils'
 import { HAND_CONNECTIONS } from '@mediapipe/hands'
 
-// Railway backend URL
-const BACKEND_URL = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'https://magic-learn-production.up.railway.app';
+// Render backend URL
+const BACKEND_URL = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'https://magic-learn-backend.onrender.com';
 
 export default function MagicLearnPage() {
   const [activeTab, setActiveTab] = useState<'about' | 'drawinair' | 'imagereader' | 'plotcrafter'>('about')

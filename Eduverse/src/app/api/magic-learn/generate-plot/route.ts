@@ -12,7 +12,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Call Flask backend on port 5000
-    const response = await fetch('http://localhost:5000/api/generate-plot', {
+    const backendUrl = process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || 'https://magic-learn-backend.onrender.com';
+    const response = await fetch(`${backendUrl}/api/generate-plot`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
