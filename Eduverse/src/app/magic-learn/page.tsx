@@ -679,7 +679,13 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const isProcessingRef = useRef<boolean>(false)
   const processedImageRef = useRef<string | null>(null)
   const [selectedColor, setSelectedColor] = useState<string>('#2596be')
+  const selectedColorRef = useRef<string>('#2596be')
   const [showColorTooltip, setShowColorTooltip] = useState<boolean>(false)
+  
+  // Update ref whenever selectedColor changes
+  useEffect(() => {
+    selectedColorRef.current = selectedColor
+  }, [selectedColor])
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -816,7 +822,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                 drawingCtx.beginPath()
                 drawingCtx.moveTo(prevPointRef.current.x, prevPointRef.current.y)
                 drawingCtx.lineTo(x, y)
-                drawingCtx.strokeStyle = selectedColor
+                drawingCtx.strokeStyle = selectedColorRef.current
                 drawingCtx.lineWidth = 3
                 drawingCtx.stroke()
               }
@@ -825,7 +831,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
               // Draw circle at index fingertip
               overlayCtx.beginPath()
               overlayCtx.arc((1 - indexTip.x) * 950, indexTip.y * 550, 8, 0, 2 * Math.PI)
-              overlayCtx.fillStyle = selectedColor
+              overlayCtx.fillStyle = selectedColorRef.current
               overlayCtx.fill()
             }
             // Erasing: All four fingers (index+middle+ring+pinky) held together, NO thumb
