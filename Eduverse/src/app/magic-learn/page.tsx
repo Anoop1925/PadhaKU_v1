@@ -678,8 +678,8 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const isStreamingRef = useRef<boolean>(false)
   const isProcessingRef = useRef<boolean>(false)
   const processedImageRef = useRef<string | null>(null)
-  const [selectedColor, setSelectedColor] = useState<string>('#2596be')
-  const selectedColorRef = useRef<string>('#2596be')
+  const [selectedColor, setSelectedColor] = useState<string>('#e434e0')
+  const selectedColorRef = useRef<string>('#e434e0')
   const [showColorTooltip, setShowColorTooltip] = useState<boolean>(false)
   
   // Update ref whenever selectedColor changes
