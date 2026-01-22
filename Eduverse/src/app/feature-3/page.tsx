@@ -9,8 +9,8 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { Sparkles, Info, Brain, Hand, CheckCircle2, Lightbulb, Target, TrendingUp, Camera, Video, BookOpen, Zap } from "lucide-react";
 
-// Gemini API Key (replace with your own if needed)
-const GOOGLE_API_KEY = "AIzaSyBimEuo5VS8Ac5Ylzwbz1ooQUY-VIJYsAE";
+// Gemini API Key from environment variable
+const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_QUIZ_GENERATION_API_KEY || "";
 
 // Types
 interface QuizQuestion {
