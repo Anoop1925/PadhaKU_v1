@@ -52,3 +52,8 @@ API_KEY_SECURITY.md
 next-env.d.ts
 
 .vercel
+
+# Deployment guides with sensitive info
+RENDER_DEPLOYMENT_GUIDE.md
+QUICK_COMMANDS.md
+IMAGE_GENERATION_MIGRATION.md
