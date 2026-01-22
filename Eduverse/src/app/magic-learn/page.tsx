@@ -678,6 +678,8 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
   const isStreamingRef = useRef<boolean>(false)
   const isProcessingRef = useRef<boolean>(false)
   const processedImageRef = useRef<string | null>(null)
+  const [selectedColor, setSelectedColor] = useState<string>('#2596be')
+  const [showColorTooltip, setShowColorTooltip] = useState<boolean>(false)
 
   // Poll for current gesture and AUTO-TRIGGER analysis
   useEffect(() => {
@@ -814,8 +816,8 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                 drawingCtx.beginPath()
                 drawingCtx.moveTo(prevPointRef.current.x, prevPointRef.current.y)
                 drawingCtx.lineTo(x, y)
-                drawingCtx.strokeStyle = '#2596be'
-                drawingCtx.lineWidth = 5
+                drawingCtx.strokeStyle = selectedColor
+                drawingCtx.lineWidth = 3
                 drawingCtx.stroke()
               }
               prevPointRef.current = { x, y }
@@ -823,7 +825,7 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
               // Draw circle at index fingertip
               overlayCtx.beginPath()
               overlayCtx.arc((1 - indexTip.x) * 950, indexTip.y * 550, 8, 0, 2 * Math.PI)
-              overlayCtx.fillStyle = '#2596be'
+              overlayCtx.fillStyle = selectedColor
               overlayCtx.fill()
             }
             // Erasing: All four fingers (index+middle+ring+pinky) held together, NO thumb
@@ -836,9 +838,11 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
               const x = (1 - centerX) * 950  // Mirror X
               const y = centerY * 550
               
-              // Draw large eraser circle on overlay (visual feedback)
+              // Draw large eraser circle on overlay with grayish-white background
               overlayCtx.beginPath()
               overlayCtx.arc(x, y, 35, 0, 2 * Math.PI)
+              overlayCtx.fillStyle = 'rgba(230, 230, 230, 0.7)'
+              overlayCtx.fill()
               overlayCtx.strokeStyle = 'rgba(0, 200, 255, 0.8)'
               overlayCtx.lineWidth = 2
               overlayCtx.stroke()
@@ -1676,6 +1680,40 @@ function DrawInAirTab({ theme }: { theme: 'light' | 'dark' }) {
                 className="w-full h-auto absolute top-0 left-0 pointer-events-none"
                 style={{ display: isStreaming ? 'block' : 'none' }}
               />
+              
+              {/* Color Picker Grid - Bottom Right Corner */}
+              {isStreaming && (
+                <div 
+                  className="absolute bottom-4 right-4 z-10"
+                  onMouseEnter={() => setShowColorTooltip(true)}
+                  onMouseLeave={() => setShowColorTooltip(false)}
+                >
+                  {/* Tooltip */}
+                  {showColorTooltip && (
+                    <div className="absolute bottom-full mb-2 right-0 bg-black/90 text-white text-xs px-3 py-1.5 rounded-md whitespace-nowrap">
+                      Select your color to draw
+                    </div>
+                  )}
+                  
+                  {/* Color Grid */}
+                  <div className="grid grid-cols-4 gap-1 bg-white/95 p-2 rounded-lg shadow-lg border-2 border-gray-800">
+                    {[
+                      '#FF0000', '#FF7F00', '#FFFF00', '#00FF00',
+                      '#00FFFF', '#0000FF', '#8B00FF', '#FF00FF'
+                    ].map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => setSelectedColor(color)}
+                        className={`w-8 h-8 rounded-md transition-all hover:scale-110 ${
+                          selectedColor === color ? 'ring-2 ring-black ring-offset-2' : ''
+                        }`}
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
               
               {!isStreaming && (
                 <div className="flex items-center justify-center h-[550px] text-gray-400">
