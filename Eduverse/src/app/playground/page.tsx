@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Play, AlertCircle, Sparkles, Info, Sun, Moon } from "lucide-react";
 import Image from "next/image";
 
-const BACKEND_URL = "http://localhost:5001";
+const BACKEND_URL = "http://localhost:8080";
 
 export default function PlaygroundApp() {
   const [activeTab, setActiveTab] = useState<'about' | 'feature'>('about');

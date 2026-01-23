@@ -330,5 +330,5 @@ Create an engaging, interactive learning experience based on the video content. 
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    # Run on port 5001 to avoid conflict with Magic Learn backend (port 5000)
-    app.run(debug=True, port=5001)
+    # Run on port 8080 to avoid conflict with Magic Learn backend (port 5000)
+    app.run(debug=True, port=8080)
