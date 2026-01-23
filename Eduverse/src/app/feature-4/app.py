@@ -108,6 +108,18 @@ def get_video_id(url):
     match = re.search(regex, url)
     return match.group(1) if match else None
 
+@app.route('/')
+def root():
+    """Root endpoint"""
+    return jsonify({
+        "service": "Playground Backend", 
+        "status": "running",
+        "endpoints": {
+            "/health": "GET - Health check",
+            "/generate": "POST - Generate playground from YouTube URL"
+        }
+    })
+
 @app.route('/health')
 def health():
     """Health check endpoint"""
