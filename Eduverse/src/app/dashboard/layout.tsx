@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
-import { LayoutDashboard, BookOpen, TestTube, Code, Trophy, Wand2, MessageSquare, LogOut } from "lucide-react";
+import { LayoutDashboard, BookOpen, TestTube, Code, Trophy, Wand2, MessageSquare, LogOut, Zap } from "lucide-react";
 import { ReactNode, useState } from "react";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -21,6 +21,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     { label: "Magic Learn", route: "/feature-1", icon: Wand2, isMagic: true },
     { label: "AI-Course", route: "/feature-2", icon: BookOpen },
     { label: "Quiz Generator", route: "/feature-3", icon: TestTube },
+    { label: "Playground", route: "/feature-4", icon: Zap, isPlayground: true },
     { label: "Leaderboard", route: "/feature-5", icon: Trophy },
     { label: "AskSensei", route: "/ai-mentor", icon: MessageSquare },
   ];
@@ -64,13 +65,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                       ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg'
                       : item.isMagic
                       ? 'text-slate-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-indigo-50'
+                      : item.isPlayground && isActive
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg'
+                      : item.isPlayground
+                      ? 'text-slate-700 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-teal-50'
                       : isActive
                       ? 'bg-[#387BFF] text-white shadow-md'
                       : 'text-slate-700 hover:bg-slate-100'
                   }`}
                   suppressHydrationWarning
                 >
-                  <Icon className={`w-5 h-5 ${isActive || item.isMagic && isActive ? '' : 'text-slate-500'}`} />
+                  <Icon className={`w-5 h-5 ${isActive || item.isMagic && isActive || item.isPlayground && isActive ? '' : 'text-slate-500'}`} />
                   <span className="text-sm">{item.label}</span>
                 </button>
               );
