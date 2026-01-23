@@ -1,12 +1,15 @@
-# Python - Only ignore compiled files, NOT venv (tracked with Git LFS)
+# Python
 *.pyc
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+venv/
+env/
+ENV/
 
-# Environment variables only
+# Environment variables
 .env
 .env.local
 
