@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
-import { LayoutDashboard, BookOpen, TestTube, Code, Trophy, Wand2, MessageSquare, LogOut, Zap } from "lucide-react";
+import { LayoutDashboard, BookOpen, TestTube, Code, Trophy, Wand2, MessageSquare, LogOut, Zap, BarChart3 } from "lucide-react";
 import { ReactNode, useState } from "react";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -24,6 +24,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     { label: "Playground", route: "/feature-4", icon: Zap, isPlayground: true },
     { label: "Leaderboard", route: "/feature-5", icon: Trophy },
     { label: "AskSensei", route: "/ai-mentor", icon: MessageSquare },
+    { label: "Analytics", route: "/analytics", icon: BarChart3 },
   ];
 
   return (
