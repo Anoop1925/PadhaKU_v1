@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const groqClient = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
+});
 
 export async function POST(req: NextRequest) {
   try {
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json(
+        { error: "GROQ_API_KEY is not configured" },
+        { status: 500 }
+      );
+    }
+
     const { courseId, cid, chapterIndex } = await req.json();
 
     if ((!courseId && !cid) || chapterIndex === undefined) {
@@ -96,11 +105,19 @@ Respond with ONLY valid JSON in this exact format (no markdown, no code blocks):
   ]
 }`;
 
-    // Use Gemini API
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const content = response.text();
+    // Use Groq via OpenAI SDK
+    const response = await groqClient.responses.create({
+      model: "openai/gpt-oss-20b",
+      input: prompt,
+    });
+    const content = response.output_text?.trim();
+
+    if (!content) {
+      return NextResponse.json(
+        { error: "Failed to generate quiz. Empty model response." },
+        { status: 500 }
+      );
+    }
 
     // Parse the JSON response
     let quizData;
