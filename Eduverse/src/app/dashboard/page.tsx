@@ -22,6 +22,11 @@ interface Assignment {
   id: string;
   title: string;
   description?: string;
+  dueDate?: string | null;
+  assignmentDate?: string | null;
+  status?: "COMPLETED" | "PENDING";
+  courseName?: string;
+  courseSection?: string;
 }
 
 export default function Dashboard() {
@@ -41,6 +46,7 @@ export default function Dashboard() {
   const [coursesCompleted, setCoursesCompleted] = useState(0);
   const [chaptersCompleted, setChaptersCompleted] = useState(0);
   const [profileDataLoading, setProfileDataLoading] = useState(true);
+  const [classroomDataLoading, setClassroomDataLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
@@ -120,47 +126,50 @@ export default function Dashboard() {
   useEffect(() => {
     if (!session?.accessToken) return;
 
-    fetch("https://classroom.googleapis.com/v1/courses", {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setCourses(data.courses || []);
-        if (data.courses?.[0]) setSelectedCourseId(data.courses[0].id);
-      });
-  }, [session]);
+    let isMounted = true;
 
-  useEffect(() => {
-    if (!session?.accessToken || !selectedCourseId) return;
+    const fetchDashboardClassroomData = async () => {
+      try {
+        setClassroomDataLoading(true);
 
-    fetch(`https://classroom.googleapis.com/v1/courses/${selectedCourseId}/announcements`, {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setAnnouncements((prev) => ({
-          ...prev,
-          [selectedCourseId]: data.announcements || [],
-        }));
-      });
+        const response = await fetch('/api/dashboard/classroom-overview', {
+          method: 'GET',
+          cache: 'no-store',
+        });
 
-    fetch(`https://classroom.googleapis.com/v1/courses/${selectedCourseId}/courseWork`, {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setAssignments((prev) => ({
-          ...prev,
-          [selectedCourseId]: data.courseWork || [],
-        }));
-      });
-  }, [selectedCourseId, session]);
+        if (!response.ok) {
+          throw new Error(`Failed to load classroom overview: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!isMounted) return;
+
+        const nextCourses = data.courses || [];
+        setCourses(nextCourses);
+        setAnnouncements(data.announcementsByCourse || {});
+        setAssignments(data.assignmentsByCourse || {});
+
+        setSelectedCourseId((prev) => {
+          if (prev && nextCourses.some((course: Course) => course.id === prev)) {
+            return prev;
+          }
+          return nextCourses[0]?.id || null;
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard classroom data:', error);
+      } finally {
+        if (isMounted) {
+          setClassroomDataLoading(false);
+        }
+      }
+    };
+
+    fetchDashboardClassroomData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session?.accessToken]);
 
   // --- Dashboard Layout ---
   // Monthly calendar state
@@ -175,7 +184,9 @@ export default function Dashboard() {
   // KPI calculations
   const totalClasses = courses.length;
   const allAssignments = Object.values(assignments).flat();
-  const assignmentsCompleted = Math.floor(allAssignments.length * 0.7); // Mock completion rate
+  const assignmentsCompleted = allAssignments.filter(
+    (assignment) => assignment.status === 'COMPLETED'
+  ).length;
   const assignmentsPending = allAssignments.length - assignmentsCompleted;
   const nextDeadline = allAssignments[0]?.title || "No upcoming deadlines";
 
@@ -198,23 +209,11 @@ export default function Dashboard() {
   };
   
   const getAssignmentsForDay = (day: Date) => {
-    // Mock: randomly assign some assignments to days with course information
-    const dayNum = parseInt(format(day, 'd'));
-    const monthAssignments = allAssignments.slice(0, Math.min(15, allAssignments.length));
-    return monthAssignments
-      .filter((_, idx) => (idx * 3 + 1) % 30 === (dayNum - 1) % 30)
-      .map(assignment => {
-        // Find the course for this assignment
-        const courseId = Object.keys(assignments).find(cId => 
-          assignments[cId].some(a => a.id === assignment.id)
-        );
-        const course = courses.find(c => c.id === courseId);
-        return {
-          ...assignment,
-          courseName: course?.name || 'Unknown Course',
-          courseSection: course?.section || '',
-        };
-      });
+    return allAssignments.filter((assignment) => {
+      const dateToMatch = assignment.dueDate || assignment.assignmentDate;
+      if (!dateToMatch) return false;
+      return isSameDay(new Date(dateToMatch), day);
+    });
   };
 
   // Navigate months
@@ -273,7 +272,7 @@ export default function Dashboard() {
           <div className="p-5 rounded-2xl bg-[#c8d9f5] border-t-[3px] border-t-[#444fd6] hover:translate-y-[-2px] transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-slate-800 mb-1">{totalClasses}</div>
+                <div className="text-3xl font-bold text-slate-800 mb-1">{classroomDataLoading ? '...' : totalClasses}</div>
                 <div className="text-sm font-medium text-slate-600">Total Classes Enrolled</div>
               </div>
               <div className="w-12 h-12 rounded-xl bg-[#444fd6] flex items-center justify-center flex-shrink-0">
@@ -286,7 +285,7 @@ export default function Dashboard() {
           <div className="p-5 rounded-2xl bg-[#c8f0dc] border-t-[3px] border-t-[#10b981] hover:translate-y-[-2px] transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-slate-800 mb-1">{assignmentsCompleted}</div>
+                <div className="text-3xl font-bold text-slate-800 mb-1">{classroomDataLoading ? '...' : assignmentsCompleted}</div>
                 <div className="text-sm font-medium text-slate-600">Assignments Completed</div>
               </div>
               <div className="w-12 h-12 rounded-xl bg-[#10b981] flex items-center justify-center flex-shrink-0">
@@ -299,7 +298,7 @@ export default function Dashboard() {
           <div className="p-5 rounded-2xl bg-[#fde6c8] border-t-[3px] border-t-[#f59e0b] hover:translate-y-[-2px] transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-slate-800 mb-1">{assignmentsPending}</div>
+                <div className="text-3xl font-bold text-slate-800 mb-1">{classroomDataLoading ? '...' : assignmentsPending}</div>
                 <div className="text-sm font-medium text-slate-600">Assignments Pending</div>
               </div>
               <div className="w-12 h-12 rounded-xl bg-[#f59e0b] flex items-center justify-center flex-shrink-0">
@@ -313,7 +312,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-3xl font-bold text-slate-800 mb-1">
-                  {Object.values(announcements).reduce((acc, arr) => acc + arr.length, 0)}
+                  {classroomDataLoading ? '...' : Object.values(announcements).reduce((acc, arr) => acc + arr.length, 0)}
                 </div>
                 <div className="text-sm font-medium text-slate-600">Total Announcements</div>
               </div>
@@ -437,7 +436,7 @@ export default function Dashboard() {
                   <ClipboardList className="w-4 h-4 text-blue-600" />
                   <span className="text-xs font-medium text-slate-600">Total Tasks</span>
                 </div>
-                <div className="text-xl font-bold text-blue-600">{allAssignments.length}</div>
+                <div className="text-xl font-bold text-blue-600">{classroomDataLoading ? '...' : allAssignments.length}</div>
               </div>
               
               <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-3 border border-emerald-100">
@@ -445,7 +444,7 @@ export default function Dashboard() {
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span className="text-xs font-medium text-slate-600">Completed</span>
                 </div>
-                <div className="text-xl font-bold text-emerald-600">{assignmentsCompleted}</div>
+                <div className="text-xl font-bold text-emerald-600">{classroomDataLoading ? '...' : assignmentsCompleted}</div>
               </div>
               
               <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-3 border border-orange-100">
@@ -453,7 +452,7 @@ export default function Dashboard() {
                   <Clock className="w-4 h-4 text-orange-600" />
                   <span className="text-xs font-medium text-slate-600">Pending</span>
                 </div>
-                <div className="text-xl font-bold text-orange-600">{assignmentsPending}</div>
+                <div className="text-xl font-bold text-orange-600">{classroomDataLoading ? '...' : assignmentsPending}</div>
               </div>
               
               <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-3 border border-purple-100">
@@ -461,7 +460,7 @@ export default function Dashboard() {
                   <BookOpen className="w-4 h-4 text-purple-600" />
                   <span className="text-xs font-medium text-slate-600">Courses</span>
                 </div>
-                <div className="text-xl font-bold text-purple-600">{courses.length}</div>
+                <div className="text-xl font-bold text-purple-600">{classroomDataLoading ? '...' : courses.length}</div>
               </div>
             </div>          </div>
 
@@ -553,7 +552,7 @@ export default function Dashboard() {
                         </div>
                         <span className="text-sm font-semibold text-slate-700">Assignments Completed</span>
                       </div>
-                      <span className="text-lg font-bold text-orange-600">{assignmentsCompleted}</span>
+                      <span className="text-lg font-bold text-orange-600">{classroomDataLoading ? '...' : assignmentsCompleted}</span>
                     </div>
 
                     {/* Chapters Completed */}
@@ -663,14 +662,24 @@ export default function Dashboard() {
                           <div className="mb-3 p-3 rounded-lg bg-white border border-slate-200">
                             <div className="flex items-center gap-2 mb-1">
                               <Clock className="w-4 h-4 text-slate-400" />
-                              <span className="text-xs font-medium text-slate-500">Due Date</span>
+                              <span className="text-xs font-medium text-slate-500">
+                                {assignment.dueDate ? 'Due Date' : 'Assignment Date'}
+                              </span>
                             </div>
                             <div className="font-medium text-slate-800">
                               {format(selectedDay, 'EEEE, dd MMMM yyyy')}
                             </div>
-                            <div className="flex items-center gap-1.5 text-sm text-amber-600 font-medium mt-1">
+                            <div className={`flex items-center gap-1.5 text-sm font-medium mt-1 ${
+                              assignment.status === 'COMPLETED' ? 'text-emerald-600' : 'text-amber-600'
+                            }`}>
                               <Bell className="w-3.5 h-3.5" />
-                              {isToday(selectedDay) ? 'Due Today!' : isSameDay(selectedDay, addDays(new Date(), 1)) ? 'Due Tomorrow!' : 'Upcoming'}
+                              {assignment.status === 'COMPLETED'
+                                ? 'Completed'
+                                : isToday(selectedDay)
+                                ? 'Due Today!'
+                                : isSameDay(selectedDay, addDays(new Date(), 1))
+                                ? 'Due Tomorrow!'
+                                : 'Upcoming'}
                             </div>
                           </div>
 
@@ -700,9 +709,13 @@ export default function Dashboard() {
 
                           {/* Status Badge */}
                           <div className="flex items-center gap-2 pt-3 border-t border-slate-200">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-[#fef5e7] text-amber-600 border border-amber-200">
+                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${
+                              assignment.status === 'COMPLETED'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-[#fef5e7] text-amber-600 border-amber-200'
+                            }`}>
                               <Clock className="w-3 h-3" />
-                              Pending
+                              {assignment.status === 'COMPLETED' ? 'Completed' : 'Pending'}
                             </div>
                             <div className="ml-auto text-xs text-slate-400">
                               ID: {assignment.id.slice(0, 8)}
